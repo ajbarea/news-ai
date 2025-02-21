@@ -1,0 +1,12 @@
+1. Go to OpenAI and create new API key
+2. Set API key as an environment variable:
+    - Bash: export OPENAI_API_KEY="key"
+    - Windows CMD: set OPENAI_API_KEY=key
+    - Windows PS: $env:OPENAI_API_KEY="key"
+
+The env variable needs to be precisely named or the proto demo will not work.
+
+Observations:
+OpenAI allows a small API token limit for new users, meaning any new accounts we create have a limit on the number of prompts they can send via the api.
+Depending on how long those free credits last, we may need to change lanes on this. We could use soup to interface with ChatGPT to get the same effect
+but without needing to create a bunch of accounts. We could also find other LLM APIs that could do a similar job for free. Definitely something to experiment with.
