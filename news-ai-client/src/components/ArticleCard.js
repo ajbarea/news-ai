@@ -17,15 +17,12 @@ function ArticleCard({ article }) {
       />
       <CardBody>
         <CardTitle tag="h5">{article.title}</CardTitle>
-
         <div className="d-flex align-items-center mb-2">
           <small className="text-muted me-2">📅 {date}</small>
           <Badge color="primary" pill className="me-2">{category}</Badge>
           <small className="text-muted">5 min read</small>
         </div>
-
         <CardText>{article.summary}</CardText>
-
         <div className="d-flex justify-content-between align-items-center mt-3">
           <ButtonGroup size="sm">
             <Button outline color="secondary" className="me-1">
@@ -45,8 +42,6 @@ function ArticleCard({ article }) {
           >
             Read More <FaArrowRight className="ms-1" size="0.8em" />
           </Button>
-
-
         </div>
       </CardBody>
     </Card>

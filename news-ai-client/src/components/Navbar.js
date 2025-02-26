@@ -38,9 +38,9 @@ function NavbarComponent() {
               Categories
             </DropdownToggle>
             <DropdownMenu end>
-              <DropdownItem tag={Link} to="/category/politics">Politics</DropdownItem>
-              <DropdownItem tag={Link} to="/category/technology">Technology</DropdownItem>
-              <DropdownItem tag={Link} to="/category/sports">Sports</DropdownItem>
+              <DropdownItem tag={Link} to="/article/1">Politics</DropdownItem>
+              <DropdownItem tag={Link} to="/article/1">Technology</DropdownItem>
+              <DropdownItem tag={Link} to="/article/1">Sports</DropdownItem>
               <DropdownItem divider />
               <DropdownItem tag={Link} to="/categories">All Categories</DropdownItem>
             </DropdownMenu>

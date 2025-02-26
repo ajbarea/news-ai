@@ -35,13 +35,12 @@ function Categories() {
           <p className="text-muted">Browse news articles by your favorite categories</p>
         </Col>
       </Row>
-
       <Row>
         {categories.map((category) => (
           <Col key={category.id} md="6" lg="4" xl="3" className="mb-4">
-            <Card 
-              tag={Link} 
-              to={`/category/${category.id}`} 
+            <Card
+              tag={Link}
+              to={`/category/${category.id}`}
               className={`h-100 ${getCardColorClass(category.color)}`}
               style={{ textDecoration: 'none', borderWidth: '2px' }}
             >
@@ -54,7 +53,6 @@ function Categories() {
           </Col>
         ))}
       </Row>
-
       <Row className="mt-5">
         <Col>
           <Card className="bg-light border-primary">

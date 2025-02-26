@@ -3,9 +3,9 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import About from './pages/About';
-import Categories from './components/Categories';
+import Categories from './pages/Categories';
 import ArticlePage from './pages/ArticlePage';
-import NotFound from './components/NotFound';
+import NotFound from './pages/NotFound';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
