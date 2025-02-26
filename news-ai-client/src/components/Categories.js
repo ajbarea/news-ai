@@ -1,69 +1,81 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Container, Row, Col, Card, CardBody, CardTitle, CardText, Input, Button, InputGroup } from 'reactstrap';
 
 function Categories() {
   const categories = [
-    { id: 'business', name: 'Business', count: 24, color: 'blue', icon: '💼' },
+    { id: 'business', name: 'Business', count: 24, color: 'primary', icon: '💼' },
     { id: 'technology', name: 'Technology', count: 18, color: 'purple', icon: '💻' },
-    { id: 'health', name: 'Health', count: 12, color: 'green', icon: '🏥' },
-    { id: 'sports', name: 'Sports', count: 15, color: 'red', icon: '🏈' },
-    { id: 'entertainment', name: 'Entertainment', count: 21, color: 'yellow', icon: '🎭' },
-    { id: 'science', name: 'Science', count: 9, color: 'indigo', icon: '🔬' },
-    { id: 'politics', name: 'Politics', count: 17, color: 'orange', icon: '🏛️' },
-    { id: 'environment', name: 'Environment', count: 11, color: 'emerald', icon: '🌍' },
+    { id: 'health', name: 'Health', count: 12, color: 'success', icon: '🏥' },
+    { id: 'sports', name: 'Sports', count: 15, color: 'danger', icon: '🏈' },
+    { id: 'entertainment', name: 'Entertainment', count: 21, color: 'warning', icon: '🎭' },
+    { id: 'science', name: 'Science', count: 9, color: 'info', icon: '🔬' },
+    { id: 'politics', name: 'Politics', count: 17, color: 'secondary', icon: '🏛️' },
+    { id: 'environment', name: 'Environment', count: 11, color: 'success', icon: '🌍' },
   ];
 
-  const colorClasses = {
-    blue: 'bg-blue-100 text-blue-800 border-blue-200',
-    green: 'bg-green-100 text-green-800 border-green-200',
-    red: 'bg-red-100 text-red-800 border-red-200',
-    yellow: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    purple: 'bg-purple-100 text-purple-800 border-purple-200',
-    indigo: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-    orange: 'bg-orange-100 text-orange-800 border-orange-200',
-    emerald: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  const getCardColorClass = (color) => {
+    const colorMap = {
+      primary: 'border-primary',
+      secondary: 'border-secondary',
+      success: 'border-success',
+      danger: 'border-danger',
+      warning: 'border-warning',
+      info: 'border-info',
+      purple: 'border-primary'
+    };
+    return colorMap[color] || 'border-primary';
   };
 
   return (
-    <div className="pt-20 pb-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-4">News Categories</h1>
-        <p className="text-gray-600">Browse news articles by your favorite categories</p>
-      </div>
+    <Container className="mt-5 pt-4">
+      <Row className="mb-4">
+        <Col>
+          <h1 className="mb-3">News Categories</h1>
+          <p className="text-muted">Browse news articles by your favorite categories</p>
+        </Col>
+      </Row>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <Row>
         {categories.map((category) => (
-          <Link
-            to={`/category/${category.id}`}
-            key={category.id}
-            className={`flex flex-col items-center p-6 rounded-xl border-2 hover:shadow-md transition-shadow ${colorClasses[category.color]} hover:opacity-90`}
-          >
-            <span className="text-4xl mb-2">{category.icon}</span>
-            <h3 className="text-xl font-semibold">{category.name}</h3>
-            <span className="mt-2 px-3 py-1 bg-white bg-opacity-50 rounded-full text-sm">
-              {category.count} articles
-            </span>
-          </Link>
+          <Col key={category.id} md="6" lg="4" xl="3" className="mb-4">
+            <Card 
+              tag={Link} 
+              to={`/category/${category.id}`} 
+              className={`h-100 ${getCardColorClass(category.color)}`}
+              style={{ textDecoration: 'none', borderWidth: '2px' }}
+            >
+              <CardBody className="text-center">
+                <div className="mb-2 fs-1">{category.icon}</div>
+                <CardTitle tag="h3" className="mb-2">{category.name}</CardTitle>
+                <span className="badge bg-light text-dark">{category.count} articles</span>
+              </CardBody>
+            </Card>
+          </Col>
         ))}
-      </div>
+      </Row>
 
-      <div className="mt-12 bg-blue-50 border border-blue-100 rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-2">Can't find what you're looking for?</h2>
-        <p className="text-gray-600 mb-4">
-          Our AI can help you find articles on any topic, even if it's not listed in our categories.
-        </p>
-        <div className="flex">
-          <input
-            type="text"
-            placeholder="Enter any topic..."
-            className="flex-grow px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-r-md transition-colors">
-            Search
-          </button>
-        </div>
-      </div>
-    </div>
+      <Row className="mt-5">
+        <Col>
+          <Card className="bg-light border-primary">
+            <CardBody>
+              <CardTitle tag="h2" className="mb-3">Can't find what you're looking for?</CardTitle>
+              <CardText className="text-muted mb-4">
+                Our AI can help you find articles on any topic, even if it's not listed in our categories.
+              </CardText>
+              <InputGroup>
+                <Input
+                  type="text"
+                  placeholder="Enter any topic..."
+                  className="flex-grow-1"
+                />
+                <Button color="primary">Search</Button>
+              </InputGroup>
+            </CardBody>
+          </Card>
+        </Col>
+      </Row>
+    </Container>
   );
 }
 

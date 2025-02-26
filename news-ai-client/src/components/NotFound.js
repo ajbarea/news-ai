@@ -1,11 +1,14 @@
 import React from 'react';
+import { Container, Alert } from 'reactstrap';
 
 function NotFound() {
     return (
-        <div className="p-4">
-            <h1 className="text-2xl font-bold mb-4">404 - Not Found</h1>
-            <p>The page you're looking for does not exist.</p>
-        </div>
+        <Container className="mt-4">
+            <Alert color="danger">
+                <h1 className="mb-4">404 - Not Found</h1>
+                <p>The page you're looking for does not exist.</p>
+            </Alert>
+        </Container>
     );
 }
 

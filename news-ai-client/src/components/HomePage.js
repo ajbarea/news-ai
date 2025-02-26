@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Container, Row, Col, Button, ButtonGroup, Card, CardText } from 'reactstrap';
 import ArticleCard from './ArticleCard';
 
 function HomePage() {
@@ -59,55 +60,68 @@ function HomePage() {
         : sampleArticles.filter(article => article.category === activeCategory);
 
     return (
-        <div className="mt-20 pb-8">
-
-            <div className="max-w-4xl mx-auto">
-                <h1>Welcome to News-AI</h1>
-                <p>
-                    Stay informed with the latest news, trends, and stories from around the world.
-                    Our AI-powered platform brings you personalized content tailored to your interests.
-                </p>
-
-            </div>
+        <Container className="mt-5 mb-4">
+            <Row className="mb-4">
+                <Col>
+                    <h1>Welcome to News-AI</h1>
+                    <p>
+                        Stay informed with the latest news, trends, and stories from around the world.
+                        Our AI-powered platform brings you personalized content tailored to your interests.
+                    </p>
+                </Col>
+            </Row>
 
             {/* Category Filter */}
-            <div className="mb-8 flex items-center space-x-1 overflow-x-auto pb-2">
-                {categories.map(category => (
-                    <button
-                        key={category}
-                        onClick={() => setActiveCategory(category)}
-                        className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-colors ${activeCategory === category
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                    >
-                        {category}
-                    </button>
-                ))}
-            </div>
+            <Row className="mb-4">
+                <Col>
+                    <ButtonGroup className="overflow-auto" style={{ flexWrap: 'wrap' }}>
+                        {categories.map(category => (
+                            <Button
+                                key={category}
+                                color={activeCategory === category ? "primary" : "secondary"}
+                                outline={activeCategory !== category}
+                                onClick={() => setActiveCategory(category)}
+                                className="me-2 mb-2"
+                            >
+                                {category}
+                            </Button>
+                        ))}
+                    </ButtonGroup>
+                </Col>
+            </Row>
 
-            <h2 className="text-2xl font-bold mb-6 text-gray-800">
-                {activeCategory === 'All' ? 'Featured News' : `${activeCategory} News`}
-            </h2>
+            <Row className="mb-4">
+                <Col>
+                    <h2 className="mb-3">
+                        {activeCategory === 'All' ? 'Featured News' : `${activeCategory} News`}
+                    </h2>
+                </Col>
+            </Row>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Row>
                 {filteredArticles.map(article => (
-                    <ArticleCard key={article.id} article={article} />
+                    <Col key={article.id} md="6" lg="4" className="mb-4">
+                        <ArticleCard article={article} />
+                    </Col>
                 ))}
-            </div>
+            </Row>
 
             {filteredArticles.length === 0 && (
-                <div className="text-center py-12">
-                    <p className="text-gray-500 text-lg">No articles found in this category.</p>
-                    <button
-                        onClick={() => setActiveCategory('All')}
-                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                    >
-                        View All Articles
-                    </button>
-                </div>
+                <Row className="py-5">
+                    <Col className="text-center">
+                        <Card body>
+                            <CardText className="mb-3">No articles found in this category.</CardText>
+                            <Button
+                                color="primary"
+                                onClick={() => setActiveCategory('All')}
+                            >
+                                View All Articles
+                            </Button>
+                        </Card>
+                    </Col>
+                </Row>
             )}
-        </div>
+        </Container>
     );
 }
 

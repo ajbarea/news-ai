@@ -1,15 +1,20 @@
 import React from 'react';
+import { Container, Row, Col } from 'reactstrap';
 
 function Footer() {
     const currentYear = new Date().getFullYear();
 
     return (
-        <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="text-gray-500 dark:text-gray-400 text-sm">
-                <span className="text-lg" aria-label="News">📰</span>
-                NewsAI  • SWEN-732 • Group 3 • {currentYear}
-            </div>
-        </div>
+        <footer className="footer mt-auto py-3 bg-light">
+            <Container fluid>
+                <Row>
+                    <Col className="text-center text-md-start">
+                        <span className="me-2" aria-label="News">📰</span>
+                        NewsAI  • SWEN-732 • Group 3 • {currentYear}
+                    </Col>
+                </Row>
+            </Container>
+        </footer>
     );
 }
 

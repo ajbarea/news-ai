@@ -1,5 +1,6 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Card, CardBody, CardImg, CardTitle, CardText, Button, Badge, ButtonGroup } from 'reactstrap';
+import { FaRegShareSquare, FaBookmark, FaArrowRight } from "react-icons/fa";
 
 function ArticleCard({ article }) {
   const placeholderImage = `https://media.istockphoto.com/id/1369150014/vector/breaking-news-with-world-map-background-vector.jpg?s=612x612&w=0&k=20&c=9pR2-nDBhb7cOvvZU_VdgkMmPJXrBQ4rB1AkTXxRIKM=`;
@@ -7,32 +8,48 @@ function ArticleCard({ article }) {
   const date = article.date || new Date().toLocaleDateString();
 
   return (
-    <div style={{ maxWidth: '992px' }}>
-      <h4>{article.title}</h4>
-
-      <img
+    <Card className="h-100">
+      <CardImg
         src={article.imageUrl || placeholderImage}
         alt={article.title}
-        style={{ maxWidth: '100%', height: 'auto' }}
+        top
+        width="100%"
       />
+      <CardBody>
+        <CardTitle tag="h5">{article.title}</CardTitle>
 
-      <div style={{ margin: '10px 0' }}>
-        <span>📅 {date} • {category} • 5 min read</span>
-      </div>
-
-      <p>{article.summary}</p>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
-        <Link to={`${article.url}`}>
-          Read More →
-        </Link>
-
-        <div>
-          <button style={{ marginRight: '10px' }}>🔖 Bookmark</button>
-          <button>📤 Share</button>
+        <div className="d-flex align-items-center mb-2">
+          <small className="text-muted me-2">📅 {date}</small>
+          <Badge color="primary" pill className="me-2">{category}</Badge>
+          <small className="text-muted">5 min read</small>
         </div>
-      </div>
-    </div>
+
+        <CardText>{article.summary}</CardText>
+
+        <div className="d-flex justify-content-between align-items-center mt-3">
+          <ButtonGroup size="sm">
+            <Button outline color="secondary" className="me-1">
+              <FaBookmark aria-label="Bookmark" />
+            </Button>
+            <Button outline color="secondary">
+              <FaRegShareSquare aria-label="Share" />
+            </Button>
+          </ButtonGroup>
+          <Button
+            color="link"
+            tag="a"
+            href={article.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ps-0 d-flex align-items-center"
+          >
+            Read More <FaArrowRight className="ms-1" size="0.8em" />
+          </Button>
+
+
+        </div>
+      </CardBody>
+    </Card>
   );
 }
 
