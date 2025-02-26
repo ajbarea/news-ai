@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Container, Row, Col, Button, ButtonGroup, Card, CardText } from 'reactstrap';
-import ArticleCard from './ArticleCard';
+import ArticleCard from '../components/ArticleCard';
 
 function HomePage() {
     // Article Card sample data

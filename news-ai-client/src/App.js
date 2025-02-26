@@ -1,10 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
-import HomePage from './components/HomePage';
-import About from './components/About';
+import HomePage from './pages/HomePage';
+import About from './pages/About';
 import Categories from './components/Categories';
-import ArticlePage from './components/ArticlePage';
+import ArticlePage from './pages/ArticlePage';
 import NotFound from './components/NotFound';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
