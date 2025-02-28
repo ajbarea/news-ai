@@ -1,0 +1,8 @@
+fastapi[standard] # FastAPI
+uvicorn # Uvicorn
+sqlalchemy # SQLAlchemy
+asyncpg # Async PostgreSQL
+transformers # Hugging Face Transformers
+torch # PyTorch
+scikit-learn # Scikit-learn for machine learning models
+nltk # Natural Language Toolkit
