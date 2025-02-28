@@ -169,3 +169,5 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+news-ai-client/project.md
+news-ai-client/project.sh

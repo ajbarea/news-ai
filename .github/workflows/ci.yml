@@ -1,13 +1,14 @@
 # This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
 
-name: News-AI CI/CD
-run-name: ${{ github.actor }} is building and testing News-AI 🚀
+name: News-AI Build & Test Pipeline
+run-name: 🚀 ${{ github.actor }} is running CI/CD pipeline on ${{ github.ref_name }}
 
 on: [push]
 
 jobs:
-  build-test-news-ai:
+  build-and-test:
+    name: 🛠️ Build & Test
     runs-on: ubuntu-latest
 
     strategy:
@@ -16,31 +17,47 @@ jobs:
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
-      - uses: actions/checkout@v4
-      - run: echo "🎉 Build was triggered by a ${{ github.event_name }} event on branch ${{ github.ref }}."
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Repository information
+        run: echo "🏗️ Build initiated by ${{ github.actor }} via ${{ github.event_name }} event on branch ${{ github.ref_name }}"
+
+      - name: 🟢 Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
           cache-dependency-path: news-ai-client/package-lock.json
-      - run: echo "🔧 Setting up Node.js ${{ matrix.node-version }} environment."
-      - name: Install dependencies
+
+      - name: 🖥️ Environment information
+        run: |
+          echo "Node version: $(node -v)"
+          echo "NPM version: $(npm -v)"
+          echo "Operating system: $(uname -a)"
+
+      - name: 📦 Install dependencies
         run: npm ci
         working-directory: ./news-ai-client
-      - run: echo "📦 Dependencies installed successfully."
-      - name: List files in the repository
+
+      - name: 📂 Verify project structure
         run: |
-          echo "📁 Repository contents:"
+          echo "📁 Project structure verification:"
           ls -la ${{ github.workspace }}
-          echo "📁 Client directory contents:"
+          echo "📁 Client directory verification:"
           ls -la ${{ github.workspace }}/news-ai-client
-      - name: Build
+
+      - name: 🔨 Build application
         run: npm run build --if-present
         working-directory: ./news-ai-client
-      - run: echo "🏗️ Project built successfully."
-      - name: Test
+
+      - name: 🧪 Run tests
         run: npm test
         working-directory: ./news-ai-client
-      - run: echo "🧪 Tests completed successfully."
-      - run: echo "✅ All checks passed! Job status is ${{ job.status }}."
+
+      - name: 📊 Build summary
+        if: always()
+        run: |
+          echo "✅ Build status: ${{ job.status }}"
+          echo "⏱️ Workflow duration: ~${{ github.run_attempt }} minutes"
+          echo "📝 See full details at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
