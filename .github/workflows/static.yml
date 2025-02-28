@@ -4,7 +4,8 @@ name: Deploy static content to Pages
 on:
   # Runs on pushes targeting the default branch
   push:
-    branches: ["main"]
+    branches: ["aj-frontend"]
+    # TODO: Update this to main branch
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -31,6 +32,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - run: echo "🚀 Starting deployment process for ${{ github.repository }} from branch ${{ github.ref }}"
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Setup Node.js
@@ -45,6 +47,9 @@ jobs:
       - name: Build
         run: npm run build
         working-directory: ./news-ai-client
+      - run: echo "🏗️ Build completed successfully, preparing for deployment"
+      - name: List build output
+        run: ls -la ./news-ai-client/build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

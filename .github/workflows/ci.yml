@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [18.x]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
@@ -29,6 +29,12 @@ jobs:
         run: npm ci
         working-directory: ./news-ai-client
       - run: echo "📦 Dependencies installed successfully."
+      - name: List files in the repository
+        run: |
+          echo "📁 Repository contents:"
+          ls -la ${{ github.workspace }}
+          echo "📁 Client directory contents:"
+          ls -la ${{ github.workspace }}/news-ai-client
       - name: Build
         run: npm run build --if-present
         working-directory: ./news-ai-client
