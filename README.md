@@ -22,3 +22,14 @@ Group 3 - SWEN-732 Collaborative Software Development
 - AJ Barea
 - Daniel Corcoran
 - Ivan Rojas
+
+## Development
+
+### Client
+
+```bash
+cd news-ai-client
+npm install
+npm test
+npm start
+```

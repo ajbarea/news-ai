@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import NotFound from '../components/NotFound';
+import NotFound from '../pages/NotFound';
 
 // Mock the react-router-dom module
 jest.mock('react-router-dom');
