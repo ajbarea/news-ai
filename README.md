@@ -1,5 +1,9 @@
 # News-AI
 
+[![codecov](https://codecov.io/github/ajbarea/news-ai/graph/badge.svg?token=68JmKbo4jp)](https://codecov.io/github/ajbarea/news-ai) [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+## Introduction
+
 An AI-powered news aggregation platform that provides personalized content recommendations and article summaries.
 
 ## Features
