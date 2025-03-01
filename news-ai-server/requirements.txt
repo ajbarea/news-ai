@@ -6,3 +6,5 @@ transformers # Hugging Face Transformers
 torch # PyTorch
 scikit-learn # Scikit-learn for machine learning models
 nltk # Natural Language Toolkit
+pyjwt # JSON Web Tokens for authentication
+passlib[bcrypt] # Password hashing
