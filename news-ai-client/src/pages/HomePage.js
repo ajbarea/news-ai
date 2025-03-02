@@ -7,6 +7,7 @@ function HomePage() {
     const sampleArticles = [
         {
             id: 1,
+            source: "ABC News",
             title: "Egg prices predicted to soar more than 41% in 2025: USDA",
             summary: "The cost of eggs is expected to rise by over 41% in 2025, according to a new report from the U.S. Department of Agriculture. The increase is driven by a combination of factors, including rising feed costs and increased demand.",
             category: "Business",
