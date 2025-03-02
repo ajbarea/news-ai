@@ -29,6 +29,15 @@ Group 3 - SWEN-732 Collaborative Software Development
 
 ## Development
 
+### Database
+
+1. Install PostgreSQL from the [official website](https://www.postgresql.org/download/)
+2. During installation, use the default settings with:
+   - Username: `postgres`
+   - Password: `postgres`
+   - Port: `5432`
+3. When you launch the FastAPI server, it will automatically create the necessary tables in the PostgreSQL database under the public schema
+
 ### Client
 
 ```bash
