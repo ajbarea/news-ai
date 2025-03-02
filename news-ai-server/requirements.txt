@@ -1,10 +1,5 @@
-fastapi[standard] # FastAPI
-uvicorn # Uvicorn
-sqlalchemy # SQLAlchemy
-asyncpg # Async PostgreSQL
-transformers # Hugging Face Transformers
-torch # PyTorch
-scikit-learn # Scikit-learn for machine learning models
-nltk # Natural Language Toolkit
-pyjwt # JSON Web Tokens for authentication
-passlib[bcrypt] # Password hashing
+fastapi[standard]==0.115.11 # FastAPI
+pyjwt==2.10.1 # JSON Web Tokens for authentication
+passlib[bcrypt]==1.7.4 # Password hashing
+sqlalchemy==2.0.38 # SQLAlchemy
+psycopg2==2.9.10 # PostgreSQL database adapter
