@@ -1,26 +1,56 @@
+"""
+Database seeding module.
+This file contains functions to populate the database with initial data.
+It seeds users, categories, sources, and articles for the news application.
+"""
+
 from datetime import datetime
 from sqlalchemy.orm import Session
+import bcrypt
+import logging
+
+# Apply compatibility fix for bcrypt to ensure __about__ attribute exists
+if not hasattr(bcrypt, "__about__"):
+    # Create a dummy __about__ class to avoid AttributeError
+    class DummyAbout:
+        __version__ = bcrypt.__version__
+
+    bcrypt.__about__ = DummyAbout()
+    logging.info(
+        f"Applied bcrypt compatibility fix. Using bcrypt version: {bcrypt.__version__}"
+    )
+
 from passlib.context import CryptContext
 
-# Import the bcrypt fix before using passlib
-from .bcrypt_fix import *
-
-# Use relative import for database components
 from .database import engine, SessionLocal, Base
 
-# Use relative import for models
 from .. import models
 
-# Configure password hashing
+# Set up password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def get_password_hash(password):
+    """
+    Hash a password using bcrypt.
+
+    Args:
+        password (str): Plain text password
+
+    Returns:
+        str: Hashed password
+    """
     return pwd_context.hash(password)
 
 
 def seed_users(db: Session):
-    # Check if users already exist
+    """
+    Seed the database with initial user accounts.
+    Skips seeding if users already exist.
+
+    Args:
+        db (Session): Database session
+    """
     existing_users = db.query(models.User).count()
     if existing_users > 0:
         print("Users already exist, skipping seeding users.")
@@ -28,14 +58,9 @@ def seed_users(db: Session):
 
     users = [
         models.User(
-            username="JohnDoe",
-            email="johndoe@example.com",
-            password_hash=get_password_hash("secret"),
-        ),
-        models.User(
-            username="AJ",
+            username="ajbarea",
             email="ajb6289@rit.edu",
-            password_hash=get_password_hash("password"),
+            password_hash=get_password_hash("pass"),
         ),
     ]
     db.add_all(users)
@@ -44,7 +69,13 @@ def seed_users(db: Session):
 
 
 def seed_categories(db: Session):
-    # Check if categories already exist
+    """
+    Seed the database with article categories.
+    Skips seeding if categories already exist.
+
+    Args:
+        db (Session): Database session
+    """
     existing_categories = db.query(models.Category).count()
     if existing_categories > 0:
         print("Categories already exist, skipping seeding categories.")
@@ -66,7 +97,13 @@ def seed_categories(db: Session):
 
 
 def seed_sources(db: Session):
-    # Check if sources already exist
+    """
+    Seed the database with news sources.
+    Skips seeding if sources already exist.
+
+    Args:
+        db (Session): Database session
+    """
     existing_sources = db.query(models.Source).count()
     if existing_sources > 0:
         print("Sources already exist, skipping seeding sources.")
@@ -140,13 +177,18 @@ def seed_sources(db: Session):
 
 
 def seed_articles(db: Session):
-    # Check if articles already exist
+    """
+    Seed the database with sample articles.
+    Skips seeding if articles already exist.
+
+    Args:
+        db (Session): Database session
+    """
     existing_articles = db.query(models.Article).count()
     if existing_articles > 0:
         print("Articles already exist, skipping seeding articles.")
         return
 
-    # Get category and source IDs
     business_category = db.query(models.Category).filter_by(name="business").first()
     tech_category = db.query(models.Category).filter_by(name="technology").first()
     science_category = db.query(models.Category).filter_by(name="science").first()
@@ -209,9 +251,11 @@ def seed_articles(db: Session):
 
 
 def seed_all():
-    """Seed all tables with initial data"""
+    """
+    Seed all database tables with initial data.
+    This function runs all individual seeding functions in the correct order.
+    """
     print("Starting database seeding...")
-    # Create tables if they don't exist
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
