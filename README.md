@@ -33,7 +33,21 @@ Group 3 - SWEN-732 Collaborative Software Development
 
 ```bash
 cd news-ai-client
-npm install
-npm test
-npm start
+npm install # Install dependencies
+npm test # Run unit tests
+npm start # Launch React client
+```
+
+### Server
+
+```bash
+cd news-ai-server
+python -m venv .venv # Create virtual environment
+source .venv/Scripts/activate  # Windows
+# OR
+source .venv/bin/activate      # Unix/MacOS
+which python  # Should point to your .venv Python
+python -m pip install --upgrade pip # Upgrade pip
+pip install -r requirements.txt # Install dependencies
+fastapi dev main.py # Launch Python FastAPI server
 ```
