@@ -22,7 +22,7 @@ def get_password_hash(password):
 def seed_users(db: Session):
     # Check if users already exist
     existing_users = db.query(models.User).count()
-    if (existing_users > 0):
+    if existing_users > 0:
         print("Users already exist, skipping seeding users.")
         return
 
@@ -30,7 +30,7 @@ def seed_users(db: Session):
         models.User(
             username="JohnDoe",
             email="johndoe@example.com",
-            password_hash=get_password_hash("password"),
+            password_hash=get_password_hash("secret"),
         ),
         models.User(
             username="AJ",
@@ -46,7 +46,7 @@ def seed_users(db: Session):
 def seed_categories(db: Session):
     # Check if categories already exist
     existing_categories = db.query(models.Category).count()
-    if (existing_categories > 0):
+    if existing_categories > 0:
         print("Categories already exist, skipping seeding categories.")
         return
 
@@ -68,7 +68,7 @@ def seed_categories(db: Session):
 def seed_sources(db: Session):
     # Check if sources already exist
     existing_sources = db.query(models.Source).count()
-    if (existing_sources > 0):
+    if existing_sources > 0:
         print("Sources already exist, skipping seeding sources.")
         return
 
@@ -142,7 +142,7 @@ def seed_sources(db: Session):
 def seed_articles(db: Session):
     # Check if articles already exist
     existing_articles = db.query(models.Article).count()
-    if (existing_articles > 0):
+    if existing_articles > 0:
         print("Articles already exist, skipping seeding articles.")
         return
 
