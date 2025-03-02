@@ -1,3 +1,10 @@
+DROP TABLE IF EXISTS user_source_blacklist CASCADE;
+DROP TABLE IF EXISTS user_preferences CASCADE;
+DROP TABLE IF EXISTS articles CASCADE;
+DROP TABLE IF EXISTS sources CASCADE;
+DROP TABLE IF EXISTS categories CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(255) UNIQUE NOT NULL,
@@ -47,6 +54,7 @@ CREATE TABLE articles (
 );
 
 INSERT INTO users (username, email, password_hash) VALUES
+('JohnDoe', 'johndoe@example.com','$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW'),
 ('AJ', 'ajb6289@rit.edu', '$2b$10$3');
 
 INSERT INTO categories (name) VALUES 
@@ -91,9 +99,9 @@ INSERT INTO articles (title, category_id, source_id, url, published_at, image_ur
  'https://npr.brightspotcdn.com/house-republicans-budget.jpg');
 
 
-SELECT * FROM users;
-SELECT * FROM categories;
-SELECT * FROM sources;
-SELECT * FROM user_preferences;
-SELECT * FROM user_source_blacklist;
-SELECT * FROM articles;
+-- SELECT * FROM users;
+-- SELECT * FROM categories;
+-- SELECT * FROM sources;
+-- SELECT * FROM user_preferences;
+-- SELECT * FROM user_source_blacklist;
+-- SELECT * FROM articles;

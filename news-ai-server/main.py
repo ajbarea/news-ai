@@ -1,12 +1,14 @@
 from datetime import datetime, timedelta, timezone
-from typing import Annotated
-
+from typing import Annotated, List
 import jwt
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jwt.exceptions import InvalidTokenError
+from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
-from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from .database.database import get_db, engine, Base
+from .database.seed import seed_all
+from . import models, schemas
 
 # to get a string like this run:
 # openssl rand -hex 32
@@ -14,66 +16,41 @@ SECRET_KEY = "4735ea57b2de730edcbb12a0e707f4cd9424378d2563611404e29b6a1c6b160e"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-
-fake_users_db = {
-    "johndoe": {
-        "username": "johndoe",
-        "full_name": "John Doe",
-        "email": "johndoe@example.com",
-        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",
-        "disabled": False,
-    }
-}
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    username: str | None = None
-
-
-class User(BaseModel):
-    username: str
-    email: str | None = None
-    full_name: str | None = None
-    disabled: bool | None = None
-
-
-class UserInDB(User):
-    hashed_password: str
-
-
+# Configure the password context with the right settings
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-app = FastAPI()
+app = FastAPI(title="News AI API")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
+# Create tables if they don't exist
+Base.metadata.create_all(bind=engine)
+
+
+# Use startup event instead of direct call
+@app.on_event("startup")
+def startup_db_client():
+    seed_all()
 
 
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception as e:
+        print(f"Password verification error: {e}")
+        return False
 
 
 def get_password_hash(password):
     return pwd_context.hash(password)
-
-
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        return UserInDB(**user_dict)
-
-
-def authenticate_user(fake_db, username: str, password: str):
-    user = get_user(fake_db, username)
-    if not user:
-        return False
-    if not verify_password(password, user.hashed_password):
-        return False
-    return user
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
@@ -87,61 +64,164 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+# Authentication functions
+def get_user_by_username(db: Session, username: str):
+    return db.query(models.User).filter(models.User.username == username).first()
+
+
+def authenticate_user(db: Session, username: str, password: str):
+    user = get_user_by_username(db, username)
+    if not user:
+        print(f"User not found: {username}")
+        return False
+
+    # Try to verify password
+    valid = verify_password(password, user.password_hash)
+    if not valid:
+        print(f"Invalid password for user: {username}")
+
+    return user if valid else False
+
+
+async def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)], db: Session = Depends(get_db)
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
     try:
+        # Decode the JWT token
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         if username is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
-    except InvalidTokenError:
+        token_data = schemas.TokenData(username=username)
+    except jwt.PyJWTError:  # Catch all JWT exceptions
         raise credentials_exception
-    user = get_user(fake_users_db, username=token_data.username)
+
+    # Get the user from database
+    user = get_user_by_username(db, username=token_data.username)
     if user is None:
         raise credentials_exception
+
     return user
 
 
-async def get_current_active_user(
-    current_user: Annotated[User, Depends(get_current_user)],
-):
-    if current_user.disabled:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user
+@app.get("/", tags=["Root"])
+def read_root():
+    return {"message": "News AI API"}
 
 
-@app.post("/token")
+@app.post("/register", response_model=schemas.User, tags=["Authentication"])
+def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    db_user = get_user_by_username(db, username=user.username)
+    if db_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+
+    hashed_password = get_password_hash(user.password)
+    db_user = models.User(
+        username=user.username,
+        email=user.email,
+        password_hash=hashed_password,
+    )
+
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+
+@app.post("/token", response_model=schemas.Token, tags=["Authentication"])
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-) -> Token:
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    db: Session = Depends(get_db),
+):
+    user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    return Token(access_token=access_token, token_type="bearer")
+
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.get("/users/me/", response_model=User)
+@app.get("/users/me", response_model=schemas.User, tags=["Users"])
 async def read_users_me(
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[models.User, Depends(get_current_user)],
 ):
     return current_user
 
 
-@app.get("/users/me/items/")
-async def read_own_items(
-    current_user: Annotated[User, Depends(get_current_active_user)],
+@app.get("/categories", response_model=List[schemas.Category], tags=["Categories"])
+def get_categories(db: Session = Depends(get_db)):
+    categories = db.query(models.Category).all()
+    return categories
+
+
+@app.get("/sources", response_model=List[schemas.Source], tags=["Sources"])
+def get_sources(db: Session = Depends(get_db)):
+    sources = db.query(models.Source).all()
+    return sources
+
+
+@app.get("/articles", response_model=List[schemas.ArticleDetail], tags=["Articles"])
+def get_articles(
+    skip: int = 0,
+    limit: int = 10,
+    category_id: int = None,
+    db: Session = Depends(get_db),
 ):
-    return [{"item_id": "Foo", "owner": current_user.username}]
+    query = db.query(models.Article)
+    if category_id:
+        query = query.filter(models.Article.category_id == category_id)
+
+    articles = (
+        query.order_by(models.Article.published_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    return articles
+
+
+@app.get(
+    "/articles/{article_id}", response_model=schemas.ArticleDetail, tags=["Articles"]
+)
+def get_article(article_id: int, db: Session = Depends(get_db)):
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if article is None:
+        raise HTTPException(status_code=404, detail="Article not found")
+    return article
+
+
+@app.get(
+    "/users/{user_id}/preferences",
+    response_model=List[schemas.UserPreference],
+    tags=["Users"],
+)
+def get_user_preferences(
+    user_id: int,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    if current_user.id != user_id:
+        raise HTTPException(
+            status_code=403, detail="Not authorized to access these preferences"
+        )
+
+    preferences = (
+        db.query(models.UserPreference)
+        .filter(models.UserPreference.user_id == user_id)
+        .all()
+    )
+    return preferences
