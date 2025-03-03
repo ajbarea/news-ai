@@ -98,7 +98,7 @@ function HomePage() {
             <Row className="mb-4">
                 <Col>
                     <h2 className="mb-3">
-                        {activeCategory === 'All' ? 'Recommended For You' : `${activeCategory} News`}
+                        {activeCategory === 'All' ? 'Personalized Recommendations' : `${activeCategory} News`}
                     </h2>
                 </Col>
             </Row>
