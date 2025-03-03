@@ -18,8 +18,8 @@ function HomePage() {
 
                 // Fetch both articles and categories in parallel
                 const [articlesRes, categoriesRes] = await Promise.all([
-                    axios.get('http://localhost:8000/articles'),
-                    axios.get('http://localhost:8000/categories')
+                    axios.get('https://news-ai-d7mo.onrender.com/articles'),
+                    axios.get('https://news-ai-d7mo.onrender.com/categories')
                 ]);
 
                 setArticles(articlesRes.data);

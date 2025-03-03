@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8000'; // adjust to your FastAPI server address
+const API_URL = 'https://news-ai-d7mo.onrender.com:8000'; // adjust to your FastAPI server address
 
 // Helper to manage tokens in localStorage
 const TokenService = {

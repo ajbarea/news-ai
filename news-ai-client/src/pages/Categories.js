@@ -16,7 +16,7 @@ function Categories() {
         setLoading(true);
         loadingRef.current = true;
         // Add a timeout to the request to prevent it from hanging
-        const response = await axios.get('http://localhost:8000/categories', {
+        const response = await axios.get('https://news-ai-d7mo.onrender.com/categories', {
           timeout: 10000 // 10 seconds timeout
         });
         console.log('Categories data received:', response.data);
