@@ -1,0 +1,10 @@
+categories
+
+"business": Bloomberg, USA Today
+"entertainment": BBC Culture, New York Times
+"politics": The Associated Press (AP), NPR
+"health": World Health Organization (WHO), US Food & Drug Administration (FDA)
+"science": National Geographic, Nature 
+"sports": ESPN, Yahoo Sports
+"technology": Wired, Hacker News
+"environment": NASA Climate Change, BBC

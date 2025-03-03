@@ -1,0 +1,71 @@
+# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
+
+name: News-AI Build & Test Pipeline
+run-name: 🚀 ${{ github.actor }} is running CI/CD pipeline on ${{ github.ref_name }}
+
+on: [push]
+
+env:
+  CODECOV_TOKEN: 424071d7-115a-4bf0-8a13-6e32566463ce
+
+jobs:
+  build-and-test:
+    name: 🛠️ Build & Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Repository information
+        run: echo "🏗️ Build initiated by ${{ github.actor }} via ${{ github.event_name }} event on branch ${{ github.ref_name }}"
+
+      - name: 🟢 Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+          cache-dependency-path: news-ai-client/package-lock.json
+
+      - name: 🖥️ Environment information
+        run: |
+          echo "Node version: $(node -v)"
+          echo "NPM version: $(npm -v)"
+          echo "Operating system: $(uname -a)"
+
+      - name: 📦 Install dependencies
+        run: npm ci
+        working-directory: ./news-ai-client
+
+      - name: 📂 Verify project structure
+        run: |
+          echo "📁 Project structure verification:"
+          ls -la ${{ github.workspace }}
+          echo "📁 Client directory verification:"
+          ls -la ${{ github.workspace }}/news-ai-client
+
+      - name: 🔨 Build application
+        run: npm run build --if-present
+        working-directory: ./news-ai-client
+
+      - name: 🧪 Run tests
+        run: npm test -- --coverage
+        working-directory: ./news-ai-client
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ env.CODECOV_TOKEN }}
+
+      - name: 📊 Build summary
+        if: always()
+        run: |
+          echo "✅ Build status: ${{ job.status }}"
+          echo "⏱️ Workflow duration: ~${{ github.run_attempt }} minutes"
+          echo "📝 See full details at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
