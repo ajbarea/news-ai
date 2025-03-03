@@ -1,15 +1,16 @@
 import React from 'react';
 import NavbarComponent from './Navbar';
 import Footer from './Footer';
+import { Container } from 'reactstrap';
 
 function Layout({ children }) {
   return (
     <div className="d-flex flex-column min-vh-100">
       <NavbarComponent />
-      <main className="flex-shrink-0 flex-grow-1">
-        <div className="pt-5 mt-3">
+      <main className="flex-grow-1">
+        <Container className="py-5 mt-3">
           {children}
-        </div>
+        </Container>
       </main>
       <Footer />
     </div>

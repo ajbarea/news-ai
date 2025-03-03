@@ -10,10 +10,15 @@ from sqlalchemy.orm import sessionmaker
 
 # PostgreSQL connection string
 # Format: postgresql://username:password@host:port/database_name
-DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/postgres"
+
+# Development database URL
+DEV_DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/postgres"
+
+# Production database URL
+PROD_DATABASE_URL = "postgresql://news_ai_db_user:oUva89ShAz1Jyc53rX2O8u1qc6JWNCqW@dpg-cv2uo3qj1k6c739ptehg-a.ohio-postgres.render.com/news_ai_db"
 
 # Create SQLAlchemy engine with the given connection string
-engine = create_engine(DATABASE_URL)
+engine = create_engine(PROD_DATABASE_URL)
 
 # Create a sessionmaker factory that will create new database sessions
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

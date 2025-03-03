@@ -24,6 +24,37 @@ This backend powers the News-AI application, providing API endpoints for news an
                      └───────────┘
 ```
 
+## Key Features
+
+### Clean Architecture
+
+The application follows clean architecture principles with clear separation of concerns:
+
+- **API Layer**: Routes and controllers handle HTTP requests and responses
+- **Service Layer**: Encapsulates business logic and orchestrates operations
+- **Data Layer**: Database models and repositories abstract data access
+- **AI Layer**: Isolated AI functionality for easy testing and maintenance
+
+### Pydantic Models
+
+- Strong type validation for request/response data
+- Automatic request body parsing and validation
+- Schema-based response serialization
+
+### Dependency Injection
+
+- FastAPI's dependency injection system for clean, testable code
+- Scoped database sessions to ensure proper resource management
+- Reusable dependencies across multiple endpoints
+- Easy mocking for unit and integration tests
+
+### JWT Authentication
+
+- Secure, token-based authentication
+- Configurable token expiration and refresh
+- Role-based access control
+- Protected routes with dependency-based security
+
 ## Development Setup
 
 ### Prerequisites
@@ -85,20 +116,15 @@ ReDoc documentation: <http://localhost:8000/redoc>
 
 ## Project Structure
 
-```plaintext
-news-ai-server/
-├── app/
-│   ├── api/          # API routes
-│   ├── core/         # Core functionality
-│   ├── db/           # Database models and migrations
-│   ├── models/       # Pydantic models
-│   ├── services/     # Business logic
-│   ├── ai/           # AI models and processing
-│   └── main.py       # Application entry point
-├── tests/            # Test suite
-├── scripts/          # Utility scripts
-└── .venv/            # Virtual environment (gitignored)
-```
+The project follows a modular structure to support the clean architecture approach:
+
+- **API Routes**: HTTP endpoints and request handlers
+- **Core**: Configuration, constants, and application-wide utilities
+- **Database**: Models, migrations, and database connection management
+- **Schemas/Models**: Pydantic models for data validation and serialization
+- **Services**: Business logic implementation
+- **AI Components**: ML model integration and inference logic
+- **Tests**: Unit and integration tests
 
 ## API Documentation
 
