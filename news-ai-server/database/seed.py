@@ -82,14 +82,14 @@ def seed_categories(db: Session):
         return
 
     categories = [
-        models.Category(name="business"),
-        models.Category(name="entertainment"),
-        models.Category(name="politics"),
-        models.Category(name="health"),
-        models.Category(name="science"),
-        models.Category(name="sports"),
-        models.Category(name="technology"),
-        models.Category(name="environment"),
+        models.Category(name="Business", icon="💼", color="primary", article_count=12),
+        models.Category(name="Technology", icon="💻", color="purple", article_count=24),
+        models.Category(name="Health", icon="🏥", color="success", article_count=18),
+        models.Category(name="Sports", icon="🏈", color="danger", article_count=15),
+        models.Category(name="Entertainment", icon="🎭", color="warning", article_count=20),
+        models.Category(name="Science", icon="🔬", color="info", article_count=16),
+        models.Category(name="Politics", icon="🏛️", color="secondary", article_count=22),
+        models.Category(name="Environment", icon="🌍", color="success", article_count=14),
     ]
     db.add_all(categories)
     db.commit()
@@ -189,11 +189,20 @@ def seed_articles(db: Session):
         print("Articles already exist, skipping seeding articles.")
         return
 
-    business_category = db.query(models.Category).filter_by(name="business").first()
-    tech_category = db.query(models.Category).filter_by(name="technology").first()
-    science_category = db.query(models.Category).filter_by(name="science").first()
-    health_category = db.query(models.Category).filter_by(name="health").first()
-    politics_category = db.query(models.Category).filter_by(name="politics").first()
+    # Fix: Use correct case for category names (capitalized first letter)
+    business_category = db.query(models.Category).filter_by(name="Business").first()
+    tech_category = db.query(models.Category).filter_by(name="Technology").first()
+    science_category = db.query(models.Category).filter_by(name="Science").first()
+    health_category = db.query(models.Category).filter_by(name="Health").first()
+    politics_category = db.query(models.Category).filter_by(name="Politics").first()
+
+    # Verify that categories were found
+    if not all([business_category, tech_category, science_category, health_category, politics_category]):
+        print("Warning: Some categories weren't found. Available categories:")
+        categories = db.query(models.Category).all()
+        for category in categories:
+            print(f" - {category.name}")
+        return
 
     abc_source = db.query(models.Source).filter_by(name="ABC News").first()
     apple_source = db.query(models.Source).filter_by(name="Apple").first()

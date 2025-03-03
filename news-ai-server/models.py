@@ -55,6 +55,9 @@ class Category(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), unique=True, nullable=False)
+    icon = Column(String(10), nullable=True)  # Emoji icon for the category
+    color = Column(String(50), nullable=True)  # Color theme for the category UI
+    article_count = Column(Integer, default=0)  # Count of articles in this category
 
     # Relationships
     articles = relationship("Article", back_populates="category")

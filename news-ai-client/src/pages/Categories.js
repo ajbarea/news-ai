@@ -1,18 +1,65 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Container, Row, Col, Card, CardBody, CardTitle, CardText, Input, Button, InputGroup } from 'reactstrap';
+import { Container, Row, Col, Card, CardBody, CardTitle, CardText, Input, Button, InputGroup, Spinner } from 'reactstrap';
+import axios from 'axios';
 
 function Categories() {
-  const categories = [
-    { id: 'business', name: 'Business', count: 24, color: 'primary', icon: '💼' },
-    { id: 'technology', name: 'Technology', count: 18, color: 'purple', icon: '💻' },
-    { id: 'health', name: 'Health', count: 12, color: 'success', icon: '🏥' },
-    { id: 'sports', name: 'Sports', count: 15, color: 'danger', icon: '🏈' },
-    { id: 'entertainment', name: 'Entertainment', count: 21, color: 'warning', icon: '🎭' },
-    { id: 'science', name: 'Science', count: 9, color: 'info', icon: '🔬' },
-    { id: 'politics', name: 'Politics', count: 17, color: 'secondary', icon: '🏛️' },
-    { id: 'environment', name: 'Environment', count: 11, color: 'success', icon: '🌍' },
-  ];
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const loadingRef = useRef(true);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        console.log('Fetching categories...');
+        setLoading(true);
+        loadingRef.current = true;
+        // Add a timeout to the request to prevent it from hanging
+        const response = await axios.get('http://localhost:8000/categories', {
+          timeout: 10000 // 10 seconds timeout
+        });
+        console.log('Categories data received:', response.data);
+
+        if (Array.isArray(response.data)) {
+          setCategories(response.data);
+        } else {
+          console.error('Unexpected data format:', response.data);
+          setError('Received invalid data format from server');
+        }
+        setLoading(false);
+        loadingRef.current = false;
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+        if (err.code === 'ECONNABORTED') {
+          setError('Request timed out. Please check if the API server is running.');
+        } else if (err.response) {
+          // The request was made and the server responded with a status code
+          setError(`Server error: ${err.response.status} - ${err.response.statusText}`);
+        } else if (err.request) {
+          // The request was made but no response was received
+          setError('No response from server. Please check if the API server is running.');
+        } else {
+          setError('An unexpected error occurred. Please try again later.');
+        }
+        setLoading(false);
+        loadingRef.current = false;
+      }
+    };
+
+    fetchCategories();
+
+    // Fallback in case something goes wrong with state management
+    const timeout = setTimeout(() => {
+      if (loadingRef.current) {
+        console.log('Loading took too long, resetting loading state');
+        setLoading(false);
+        setError('Loading took too long. Please refresh the page.');
+      }
+    }, 15000); // 15 seconds fallback
+
+    return () => clearTimeout(timeout);
+  }, []);
 
   const getCardColorClass = (color) => {
     const colorMap = {
@@ -26,6 +73,45 @@ function Categories() {
     };
     return colorMap[color] || 'border-primary';
   };
+
+  if (loading) {
+    return (
+      <Container className="mt-5 pt-4 text-center">
+        <Spinner color="primary" />
+        <p className="mt-3">Loading categories...</p>
+        <p className="text-muted">Connecting to API at localhost:8000...</p>
+      </Container>
+    );
+  }
+
+  // Show error with retry button
+  if (error) {
+    return (
+      <Container className="mt-5 pt-4">
+        <div className="alert alert-danger" role="alert">
+          <h4 className="alert-heading">Error loading categories</h4>
+          <p>{error}</p>
+        </div>
+        <Button color="primary" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
+      </Container>
+    );
+  }
+
+  // Fallback for empty categories
+  if (!categories || categories.length === 0) {
+    return (
+      <Container className="mt-5 pt-4">
+        <div className="alert alert-warning" role="alert">
+          No categories found. The database might be empty.
+        </div>
+        <Button color="primary" onClick={() => window.location.reload()}>
+          Refresh
+        </Button>
+      </Container>
+    );
+  }
 
   return (
     <Container className="mt-5 pt-4">
@@ -47,7 +133,7 @@ function Categories() {
               <CardBody className="text-center">
                 <div className="mb-2 fs-1">{category.icon}</div>
                 <CardTitle tag="h3" className="mb-2">{category.name}</CardTitle>
-                <span className="badge bg-light text-dark">{category.count} articles</span>
+                <span className="badge bg-light text-dark">{category.article_count} articles</span>
               </CardBody>
             </Card>
           </Col>

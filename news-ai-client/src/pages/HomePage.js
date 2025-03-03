@@ -17,6 +17,7 @@ function HomePage() {
         },
         {
             id: 2,
+            source: "Apple",
             title: "Apple will spend more than $500 billion in the U.S. over the next four years",
             summary: "Apple has announced plans to invest more than $500 billion in the U.S. economy over the next four years. The tech giant will focus on creating jobs, supporting innovation, and building a more sustainable future.",
             category: "Technology",
@@ -26,6 +27,7 @@ function HomePage() {
         },
         {
             id: 3,
+            source: "Los Angeles Times",
             title: "Boiling Point: Want to fight climate change? Then talk about climate change",
             summary: "The recent heatwave in the Pacific Northwest has sparked conversations about climate change and the urgent need for action. Experts say that discussing climate change openly and honestly is crucial to driving policy changes and reducing emissions.",
             category: "Environment",
@@ -35,6 +37,7 @@ function HomePage() {
         },
         {
             id: 4,
+            source: "NBC News",
             title: "As Texas measles outbreak grows, parents are choosing to vaccinate kids",
             summary: "The measles outbreak in Texas has prompted many parents to get their children vaccinated. Health officials are urging the public to take preventive measures to stop the spread of the disease.",
             category: "Health",
@@ -44,6 +47,7 @@ function HomePage() {
         },
         {
             id: 5,
+            source: "NPR",
             title: "House Republicans pass budget resolution, clearing a key early test for Trump agenda",
             summary: "House Republicans passed a budget proposal that would increase defense spending and cut social programs. The bill is expected to face opposition in the Senate.",
             category: "Politics",
@@ -94,7 +98,7 @@ function HomePage() {
             <Row className="mb-4">
                 <Col>
                     <h2 className="mb-3">
-                        {activeCategory === 'All' ? 'Featured News' : `${activeCategory} News`}
+                        {activeCategory === 'All' ? 'Recommended For You' : `${activeCategory} News`}
                     </h2>
                 </Col>
             </Row>

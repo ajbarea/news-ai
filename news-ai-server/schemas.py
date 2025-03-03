@@ -66,6 +66,9 @@ class CategoryBase(BaseModel):
     """
 
     name: str
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    article_count: int = 0
 
 
 class Category(CategoryBase):
