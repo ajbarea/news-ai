@@ -158,6 +158,7 @@ class Article(Base):
     url = Column(Text, nullable=False)  # Link to the full article
     published_at = Column(TIMESTAMP, nullable=False)  # When the article was published
     image_url = Column(Text, nullable=True)  # Optional featured image URL
+    summary = Column(Text, nullable=True)  # Summary of the article content
 
     # Relationships
     category = relationship("Category", back_populates="articles")

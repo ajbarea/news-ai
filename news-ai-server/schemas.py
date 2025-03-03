@@ -115,6 +115,7 @@ class ArticleBase(BaseModel):
     url: str
     published_at: datetime
     image_url: Optional[str] = None
+    summary: Optional[str] = None
 
 
 class Article(ArticleBase):
