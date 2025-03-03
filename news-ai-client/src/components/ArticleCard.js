@@ -16,7 +16,7 @@ import {
   DropdownMenu,
   DropdownItem
 } from 'reactstrap';
-import { FaRegShareSquare, FaBookmark, FaArrowRight, FaEllipsisV } from "react-icons/fa";
+import { FaRegShareSquare, FaBookmark, FaArrowRight, FaEllipsisV, FaBan, FaThumbsDown } from "react-icons/fa";
 
 function ArticleCard({ article }) {
   const placeholderImage = `https://media.istockphoto.com/id/1369150014/vector/breaking-news-with-world-map-background-vector.jpg?s=612x612&w=0&k=20&c=9pR2-nDBhb7cOvvZU_VdgkMmPJXrBQ4rB1AkTXxRIKM=`;
@@ -63,7 +63,7 @@ function ArticleCard({ article }) {
   };
 
   const handleNotInterestedCategory = () => {
-    console.log(`Not interested in category: ${category}`);
+    console.log(`Show less in category: ${category}`);
     // Implement the functionality to mark not interested in category
   };
 
@@ -96,15 +96,16 @@ function ArticleCard({ article }) {
             <FaEllipsisV />
           </DropdownToggle>
           <DropdownMenu end>
+            <DropdownItem onClick={handleNotInterestedCategory}>
+              <FaThumbsDown className="me-2" /> Show less about: {category}
+            </DropdownItem>
             <DropdownItem onClick={handleBlockSource}>
-              Block source: {source}
+              <FaBan className="me-2" /> Block source: {source}
             </DropdownItem>
             <DropdownItem onClick={handleHideArticle}>
-              Hide article: {article.title}
+              <FaThumbsDown className="me-2" /> Hide article: {article.title.length > 30 ? `${article.title.substring(0, 30)}...` : article.title}
             </DropdownItem>
-            <DropdownItem onClick={handleNotInterestedCategory}>
-              Not interested in category: {category}
-            </DropdownItem>
+
           </DropdownMenu>
         </UncontrolledDropdown>
       </div>
