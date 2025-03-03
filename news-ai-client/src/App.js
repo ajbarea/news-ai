@@ -8,6 +8,7 @@ import ArticlePage from './pages/ArticlePage';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import NotFound from './pages/NotFound';
+import ProfilePage from './pages/ProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -29,6 +30,7 @@ function App() {
               <Route path="/news-ai" element={<HomePage />} />
               <Route path="/categories" element={<Categories />} />
               <Route path="/article/:id" element={<ArticlePage />} />
+              <Route path="/profile" element={<ProfilePage />} />
             </Route>
 
             {/* Show 404 page for any unmatched routes */}
