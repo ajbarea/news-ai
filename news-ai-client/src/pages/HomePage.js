@@ -44,7 +44,7 @@ function HomePage() {
         id: article.id,
         title: article.title,
         summary: article.summary || 'No summary available for this article.',
-        source: article.source.name,
+        source: article.source,
         category: article.category.name,
         date: article.published_at,
         imageUrl: article.image_url,

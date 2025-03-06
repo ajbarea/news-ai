@@ -49,7 +49,7 @@ const ArticleActions = ({ article, source, category }) => {
   );
 };
 
-const ArticleMetadata = ({ category, date, source }) => {
+const ArticleMetadata = ({ category, date, source, sourceLogo }) => {
   const calculateTimeAgo = (dateString) => {
     const publishDate = new Date(dateString);
     const currentDate = new Date();
@@ -75,7 +75,32 @@ const ArticleMetadata = ({ category, date, source }) => {
     <div className="d-flex flex-wrap mb-2">
       {category && <div className="me-1"><Badge color="primary" pill>{category}</Badge></div>}
       {date && <div className="me-2"><small className="text-muted">{calculateTimeAgo(date)}</small></div>}
-      {source && <div className="me-1"><Badge color="secondary" pill>{source}</Badge></div>}
+      {source && (
+        <div className="me-1">
+          <Badge color="secondary" pill className="d-flex align-items-center px-2">
+            {sourceLogo && (
+              <img 
+                src={sourceLogo} 
+                alt={`${source} logo`} 
+                height="16" 
+                width="16" 
+                className="me-1 rounded-circle" 
+                style={{ 
+                  objectFit: 'contain',
+                  marginRight: '4px',
+                  display: 'inline-block',
+                  verticalAlign: 'middle'
+                }}
+                onError={(e) => {
+                  console.log('Failed to load logo:', sourceLogo);
+                  e.target.style.display = 'none';
+                }}
+              />
+            )}
+            <span>{source}</span>
+          </Badge>
+        </div>
+      )}
       <div><small className="text-muted">5 min read</small></div>
     </div>
   );
@@ -83,13 +108,38 @@ const ArticleMetadata = ({ category, date, source }) => {
 
 function ArticleCard({ article }) {
   const placeholderImage = `https://media.istockphoto.com/id/1369150014/vector/breaking-news-with-world-map-background-vector.jpg?s=612x612&w=0&k=20&c=9pR2-nDBhb7cOvvZU_VdgkMmPJXrBQ4rB1AkTXxRIKM=`;
-  const { category = "General", source = "Unknown", date = new Date().toLocaleDateString() } = article;
+
+  // Extract source information
+  let sourceName = "Unknown";
+  let sourceLogo = null;
+
+  // Add debugging for sourceLogo
+  if (article.source && article.source.logo_url) {
+    console.log('Source logo found:', article.source.logo_url);
+  }
+
+  if (article.source) {
+    if (typeof article.source === 'object') {
+      sourceName = article.source.name || "Unknown";
+      sourceLogo = article.source.logo_url || null;
+    } else {
+      sourceName = article.source;
+    }
+  }
+
+  // Extract category - check if it's an object or string
+  let categoryName = "General";
+  if (article.category) {
+    categoryName = typeof article.category === 'object' ? article.category.name : article.category;
+  }
+
+  const date = article.date || article.published_at || new Date().toLocaleDateString();
   const articleId = article.id || Math.random().toString(36).substring(2, 11);
 
   return (
     <Card className="h-100 shadow-sm position-relative">
       <div className="position-absolute top-0 end-0 mt-2 me-2 z-index-1">
-        <ArticleActions article={article} source={source} category={category} />
+        <ArticleActions article={article} source={sourceName} category={categoryName} />
       </div>
 
       <div className="p-1 pt-1">
@@ -103,7 +153,12 @@ function ArticleCard({ article }) {
 
       <CardBody>
         <CardTitle tag="h5" className="mb-3">{article.title}</CardTitle>
-        <ArticleMetadata category={category} date={date} source={source} />
+        <ArticleMetadata
+          category={categoryName}
+          date={date}
+          source={sourceName}
+          sourceLogo={sourceLogo}
+        />
         <CardText>{article.summary}</CardText>
       </CardBody>
 
