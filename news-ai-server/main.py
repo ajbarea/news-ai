@@ -415,7 +415,7 @@ def get_sources(db: Session = Depends(get_db)):
 @app.get("/articles", response_model=List[schemas.ArticleDetail], tags=["Articles"])
 def get_articles(
     skip: int = 0,
-    limit: int = 10,
+    limit: int = 50,
     category_id: int = None,
     db: Session = Depends(get_db),
 ):

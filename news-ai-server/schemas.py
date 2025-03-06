@@ -1,6 +1,6 @@
 """
 API schema models module.
-This file defines Pydantic models used for data validation, serialization, 
+This file defines Pydantic models used for data validation, serialization,
 and documentation in the API endpoints. These schemas define the structure
 of request and response data for the News AI application.
 """
@@ -66,6 +66,7 @@ class UserUpdate(BaseModel):
     Schema for updating user information.
     All fields are optional since updates may be partial.
     """
+
     username: Optional[str] = None
     email: Optional[str] = None
     name: Optional[str] = None
@@ -183,6 +184,7 @@ class UserPreferenceCreate(UserPreferenceBase):
     """
     Schema for creating a new user preference.
     """
+
     pass
 
 
@@ -191,5 +193,6 @@ class UserPreferenceUpdate(BaseModel):
     Schema for updating an existing user preference.
     All fields are optional since updates may be partial.
     """
+
     score: Optional[int] = None
     blacklisted: Optional[bool] = None

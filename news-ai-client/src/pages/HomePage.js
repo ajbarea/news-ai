@@ -9,6 +9,8 @@ function HomePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeCategory, setActiveCategory] = useState('All');
+    const [visibleArticles, setVisibleArticles] = useState(9); // Initially show 9 articles
+    const articlesPerPage = 6; // Load 6 more articles on each click
 
     // Fetch articles from API
     useEffect(() => {
@@ -57,6 +59,19 @@ function HomePage() {
         : articles
             .filter(article => article.category.name === activeCategory)
             .map(formatArticle);
+
+    // Get only the articles that should be visible
+    const currentArticles = filteredArticles.slice(0, visibleArticles);
+
+    // Load more articles function
+    const loadMoreArticles = () => {
+        setVisibleArticles(prev => prev + articlesPerPage);
+    };
+
+    // Reset visible articles when changing category
+    useEffect(() => {
+        setVisibleArticles(9);
+    }, [activeCategory]);
 
     return (
         <Container className="mt-5 mb-4">
@@ -117,7 +132,7 @@ function HomePage() {
                 </Row>
             ) : (
                 <Row>
-                    {filteredArticles.map(article => (
+                    {currentArticles.map(article => (
                         <Col key={article.id} md="6" lg="4" className="mb-4">
                             <ArticleCard article={article} />
                         </Col>
@@ -137,6 +152,17 @@ function HomePage() {
                                 View All Articles
                             </Button>
                         </Card>
+                    </Col>
+                </Row>
+            )}
+
+            {/* Load More button - only show if there are more articles to load */}
+            {!loading && !error && currentArticles.length > 0 && currentArticles.length < filteredArticles.length && (
+                <Row className="mt-4 mb-5">
+                    <Col className="text-center">
+                        <Button color="primary" onClick={loadMoreArticles}>
+                            Load More Articles
+                        </Button>
                     </Col>
                 </Row>
             )}

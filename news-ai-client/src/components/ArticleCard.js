@@ -17,7 +17,7 @@ import {
   DropdownItem,
   UncontrolledTooltip
 } from 'reactstrap';
-import { FaBookmark, FaArrowRight, FaEllipsisV, FaBan, FaThumbsDown, FaMicrophone } from "react-icons/fa";
+import { FaBookmark, FaArrowRight, FaEllipsisV, FaBan, FaThumbsDown, FaMicrophone, FaSyncAlt } from "react-icons/fa";
 
 const ArticleActions = ({ article, source, category }) => {
   const handleAction = (action, target) => {
@@ -79,13 +79,13 @@ const ArticleMetadata = ({ category, date, source, sourceLogo }) => {
         <div className="me-1">
           <Badge color="secondary" pill className="d-flex align-items-center px-2">
             {sourceLogo && (
-              <img 
-                src={sourceLogo} 
-                alt={`${source} logo`} 
-                height="16" 
-                width="16" 
-                className="me-1 rounded-circle" 
-                style={{ 
+              <img
+                src={sourceLogo}
+                alt={`${source} logo`}
+                height="16"
+                width="16"
+                className="me-1 rounded-circle"
+                style={{
                   objectFit: 'contain',
                   marginRight: '4px',
                   display: 'inline-block',
@@ -181,13 +181,25 @@ function ArticleCard({ article }) {
               <Button
                 id={`speak-${articleId}`}
                 color="light"
-                className="rounded-end shadow-sm border border-light"
+                className="shadow-sm border border-light"
                 aria-label="Listen to article summary"
               >
                 <FaMicrophone className="text-danger" />
               </Button>
               <UncontrolledTooltip placement="top" target={`speak-${articleId}`}>
-                Listen to article
+                Listen to summary
+              </UncontrolledTooltip>
+
+              <Button
+                id={`refresh-${articleId}`}
+                color="light"
+                className="rounded-end shadow-sm border border-light"
+                aria-label="Regenerate summary"
+              >
+                <FaSyncAlt className="text-success" />
+              </Button>
+              <UncontrolledTooltip placement="top" target={`refresh-${articleId}`}>
+                Retry AI summary
               </UncontrolledTooltip>
             </ButtonGroup>
           </Col>
