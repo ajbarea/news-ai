@@ -14,6 +14,7 @@ import {
   DropdownItem,
 } from 'reactstrap';
 import { useAuth } from '../context/AuthContext';
+import SettingsModal from './SettingsModal';
 
 const CategoryDropdown = () => (
   <UncontrolledDropdown nav inNavbar>
@@ -28,12 +29,12 @@ const CategoryDropdown = () => (
   </UncontrolledDropdown>
 );
 
-const UserDropdown = ({ username, onLogout }) => (
+const UserDropdown = ({ username, onLogout, onOpenSettings }) => (
   <UncontrolledDropdown nav inNavbar>
     <DropdownToggle nav caret>{username || 'User'}</DropdownToggle>
     <DropdownMenu end>
       <DropdownItem tag={Link} to="/profile">Profile</DropdownItem>
-      <DropdownItem tag={Link} to="/settings">Settings</DropdownItem>
+      <DropdownItem onClick={onOpenSettings}>Settings</DropdownItem>
       <DropdownItem divider />
       <DropdownItem onClick={onLogout}>
         <span className="text-danger">Logout</span>
@@ -44,6 +45,7 @@ const UserDropdown = ({ username, onLogout }) => (
 
 function NavbarComponent() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const { currentUser, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -56,38 +58,50 @@ function NavbarComponent() {
     navigate('/login');
   };
 
-  return (
-    <Navbar color="light" light expand="md" fixed="top" container>
-      <NavbarBrand tag={Link} to="/">
-        <span className="me-2" aria-label="News">📰</span>
-        News-AI
-      </NavbarBrand>
-      <NavbarToggler onClick={() => setIsOpen(!isOpen)} />
-      <Collapse isOpen={isOpen} navbar>
-        <Nav className="me-auto" navbar>
-          {!isAuthPage && (
-            <>
-              <NavItem>
-                <NavLink tag={Link} to="/">Home</NavLink>
-              </NavItem>
-              <CategoryDropdown />
-            </>
-          )}
-          <NavItem>
-            <NavLink tag={Link} to="/about">About</NavLink>
-          </NavItem>
-        </Nav>
+  const toggleSettingsModal = () => {
+    setShowSettingsModal(!showSettingsModal);
+  };
 
-        {isUserAuthenticated && (
-          <Nav navbar className="ms-auto">
-            <UserDropdown
-              username={currentUser?.username}
-              onLogout={handleLogout}
-            />
+  return (
+    <>
+      <Navbar color="light" light expand="md" fixed="top" container>
+        <NavbarBrand tag={Link} to="/">
+          <span className="me-2" aria-label="News">📰</span>
+          News-AI
+        </NavbarBrand>
+        <NavbarToggler onClick={() => setIsOpen(!isOpen)} />
+        <Collapse isOpen={isOpen} navbar>
+          <Nav className="me-auto" navbar>
+            {!isAuthPage && (
+              <>
+                <NavItem>
+                  <NavLink tag={Link} to="/">Home</NavLink>
+                </NavItem>
+                <CategoryDropdown />
+              </>
+            )}
+            <NavItem>
+              <NavLink tag={Link} to="/about">About</NavLink>
+            </NavItem>
           </Nav>
-        )}
-      </Collapse>
-    </Navbar>
+
+          {isUserAuthenticated && (
+            <Nav navbar className="ms-auto">
+              <UserDropdown
+                username={currentUser?.username}
+                onLogout={handleLogout}
+                onOpenSettings={toggleSettingsModal}
+              />
+            </Nav>
+          )}
+        </Collapse>
+      </Navbar>
+
+      <SettingsModal
+        isOpen={showSettingsModal}
+        toggle={toggleSettingsModal}
+      />
+    </>
   );
 }
 

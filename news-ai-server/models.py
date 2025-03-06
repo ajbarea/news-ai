@@ -33,6 +33,7 @@ class User(Base):
     username = Column(String(255), unique=True, nullable=False)
     email = Column(String(255), unique=True)
     password_hash = Column(Text, nullable=False)  # Stores hashed password only
+    name = Column(String(255), nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now())  # Auto-set on creation
     updated_at = Column(
         TIMESTAMP, server_default=func.now(), onupdate=func.now()

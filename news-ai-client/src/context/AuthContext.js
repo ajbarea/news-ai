@@ -62,6 +62,34 @@ export const AuthProvider = ({ children }) => {
     setCurrentUser(null);
   };
 
+  const updateProfile = async (userData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Store old username to compare with the new one
+      const oldUsername = currentUser?.username;
+      const response = await AuthService.updateProfile(userData);
+      setCurrentUser(response.data);
+
+      // If username changed, we need to get a new JWT token
+      if (userData.username && oldUsername !== userData.username) {
+        console.log("Username changed, refreshing authentication token");
+        // Log the user out, which will clear the existing token
+        AuthService.logout();
+        // We need to redirect to login page after this
+        setError("Your username was updated. Please login again with your new username.");
+        return "USERNAME_CHANGED";
+      }
+
+      return true;
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to update profile.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const value = {
     currentUser,
     loading,
@@ -69,6 +97,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    updateProfile,
     isAuthenticated: AuthService.isAuthenticated
   };
 

@@ -1,6 +1,6 @@
 """
 Main FastAPI application module.
-This file defines the API endpoints, authentication logic, and application 
+This file defines the API endpoints, authentication logic, and application
 setup for the News AI backend server. It provides RESTful endpoints for
 accessing news articles, categories, sources, and user preferences.
 """
@@ -277,6 +277,108 @@ async def read_users_me(
     Returns:
         User: Current user information
     """
+    return current_user
+
+
+@app.put("/users/me", response_model=schemas.User, tags=["Users"])
+async def update_user(
+    user_update: schemas.UserUpdate,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """
+    Update the current user's profile information.
+
+    Args:
+        user_update: User data to update
+        current_user: Current authenticated user (from token)
+        db: Database session
+
+    Returns:
+        User: Updated user information
+
+    Raises:
+        HTTPException: If username or email already exists for another user
+    """
+    # Check if username is being updated and already exists
+    if user_update.username and user_update.username != current_user.username:
+        existing_user = get_user_by_username(db, user_update.username)
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Username already registered")
+        current_user.username = user_update.username
+
+    # Check if email is being updated and already exists
+    if user_update.email and user_update.email != current_user.email:
+        existing_email = (
+            db.query(models.User).filter(models.User.email == user_update.email).first()
+        )
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        current_user.email = user_update.email
+
+    # Update name if provided
+    if user_update.name is not None:
+        current_user.name = user_update.name
+
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@app.delete("/users/me", status_code=status.HTTP_204_NO_CONTENT, tags=["Users"])
+async def delete_user(
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """
+    Delete the current user's account.
+    This permanently removes the user and all associated data.
+
+    Args:
+        current_user: Current authenticated user (from token)
+        db: Database session
+
+    Returns:
+        None: 204 No Content response on successful deletion
+    """
+    # Delete the user
+    db.delete(current_user)
+    db.commit()
+
+    return None
+
+
+@app.post("/users/me/change-password", response_model=schemas.User, tags=["Users"])
+async def change_password(
+    password_data: dict,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """
+    Change the current user's password.
+    Requires current password for verification.
+
+    Args:
+        password_data: Contains current_password and new_password
+        current_user: Current authenticated user (from token)
+        db: Database session
+
+    Returns:
+        User: Updated user information
+
+    Raises:
+        HTTPException: If current password is incorrect
+    """
+    if not verify_password(
+        password_data["current_password"], current_user.password_hash
+    ):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    # Update password
+    current_user.password_hash = get_password_hash(password_data["new_password"])
+    db.commit()
+    db.refresh(current_user)
+
     return current_user
 
 

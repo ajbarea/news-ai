@@ -35,6 +35,7 @@ class UserBase(BaseModel):
 
     username: str
     email: Optional[str] = None
+    name: Optional[str] = None
 
 
 class UserCreate(UserBase):
@@ -58,6 +59,16 @@ class User(UserBase):
 
     class Config:
         from_attributes = True  # Allows model to be created from ORM objects
+
+
+class UserUpdate(BaseModel):
+    """
+    Schema for updating user information.
+    All fields are optional since updates may be partial.
+    """
+    username: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None
 
 
 class CategoryBase(BaseModel):
@@ -166,3 +177,19 @@ class UserPreference(UserPreferenceBase):
 
     class Config:
         from_attributes = True
+
+
+class UserPreferenceCreate(UserPreferenceBase):
+    """
+    Schema for creating a new user preference.
+    """
+    pass
+
+
+class UserPreferenceUpdate(BaseModel):
+    """
+    Schema for updating an existing user preference.
+    All fields are optional since updates may be partial.
+    """
+    score: Optional[int] = None
+    blacklisted: Optional[bool] = None

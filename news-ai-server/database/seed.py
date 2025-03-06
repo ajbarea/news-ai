@@ -60,6 +60,7 @@ def seed_users(db: Session):
         models.User(
             username="ajbarea",
             email="ajb6289@rit.edu",
+            name="AJ Barea",
             password_hash=get_password_hash("pass"),
         ),
     ]

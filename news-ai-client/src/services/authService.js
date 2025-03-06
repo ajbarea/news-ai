@@ -64,6 +64,10 @@ const AuthService = {
     return apiClient.get('/users/me');
   },
 
+  updateProfile: async (userData) => {
+    return apiClient.put('/users/me', userData);
+  },
+
   logout: () => {
     TokenService.removeToken();
   },
