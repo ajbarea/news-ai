@@ -66,9 +66,9 @@ function Login() {
 
                 <Button
                   color="primary"
-                  block
-                  type="submit"
+                  type="submit"Name="w-100"
                   disabled={loading}
+                  className="btn-block"
                 >
                   {loading ? 'Logging in...' : 'Login'}
                 </Button>

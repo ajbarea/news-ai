@@ -94,6 +94,7 @@ function ProfileModal({ isOpen, toggle }) {
                                 id="username"
                                 value={formData.username}
                                 onChange={handleChange}
+                                required
                             />
                         </FormGroup>
                         <FormGroup>
@@ -114,6 +115,7 @@ function ProfileModal({ isOpen, toggle }) {
                                 id="email"
                                 value={formData.email}
                                 onChange={handleChange}
+                                required
                             />
                         </FormGroup>
                     </Form>

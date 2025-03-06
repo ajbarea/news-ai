@@ -73,7 +73,7 @@ function HomePage() {
             {/* Category Filter */}
             <Row className="mb-4">
                 <Col>
-                    <ButtonGroup className="overflow-auto" style={{ flexWrap: 'wrap' }}>
+                    <ButtonGroup className="flex-wrap">
                         {categories.map(category => (
                             <Button
                                 key={category}

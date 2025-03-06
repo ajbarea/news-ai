@@ -84,6 +84,7 @@ const ArticleMetadata = ({ category, date, source }) => {
 function ArticleCard({ article }) {
   const placeholderImage = `https://media.istockphoto.com/id/1369150014/vector/breaking-news-with-world-map-background-vector.jpg?s=612x612&w=0&k=20&c=9pR2-nDBhb7cOvvZU_VdgkMmPJXrBQ4rB1AkTXxRIKM=`;
   const { category = "General", source = "Unknown", date = new Date().toLocaleDateString() } = article;
+  const articleId = article.id || Math.random().toString(36).substring(2, 11);
 
   return (
     <Card className="h-100 shadow-sm position-relative">
@@ -111,26 +112,26 @@ function ArticleCard({ article }) {
           <Col xs="auto">
             <ButtonGroup size="sm">
               <Button
-                id={`bookmark-${article.id || Math.random().toString(36).substring(2, 11)}`}
+                id={`bookmark-${articleId}`}
                 color="light"
                 className="rounded-start shadow-sm border border-light"
                 aria-label="Bookmark article"
               >
                 <FaBookmark className="text-primary" />
               </Button>
-              <UncontrolledTooltip placement="top" target={`bookmark-${article.id || Math.random().toString(36).substring(2, 11)}`}>
+              <UncontrolledTooltip placement="top" target={`bookmark-${articleId}`}>
                 Save to bookmarks
               </UncontrolledTooltip>
 
               <Button
-                id={`speak-${article.id || Math.random().toString(36).substring(2, 11)}`}
+                id={`speak-${articleId}`}
                 color="light"
                 className="rounded-end shadow-sm border border-light"
                 aria-label="Listen to article summary"
               >
                 <FaMicrophone className="text-danger" />
               </Button>
-              <UncontrolledTooltip placement="top" target={`speak-${article.id || Math.random().toString(36).substring(2, 11)}`}>
+              <UncontrolledTooltip placement="top" target={`speak-${articleId}`}>
                 Listen to article
               </UncontrolledTooltip>
             </ButtonGroup>

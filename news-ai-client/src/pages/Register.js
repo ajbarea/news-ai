@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Container, Row, Col, Form, FormGroup, Label, Input,
-  Button, Card, CardBody, CardHeader, Alert
+  Button, Card, CardBody, CardHeader, Alert, FormFeedback
 } from 'reactstrap';
 import { useAuth } from '../context/AuthContext';
 
@@ -97,9 +97,10 @@ function Register() {
                     id="confirmPassword"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    invalid={passwordError !== ''}
                     required
                   />
-                  {passwordError && <span className="text-danger">{passwordError}</span>}
+                  {passwordError && <FormFeedback>{passwordError}</FormFeedback>}
                 </FormGroup>
 
                 <Button
