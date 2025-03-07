@@ -83,17 +83,17 @@ def seed_categories(db: Session):
         return
 
     categories = [
-        models.Category(name="Business", icon="💼", color="primary", article_count=12),
-        models.Category(name="Technology", icon="💻", color="purple", article_count=24),
-        models.Category(name="Health", icon="🏥", color="success", article_count=18),
-        models.Category(name="Sports", icon="🏈", color="danger", article_count=15),
+        models.Category(name="Business", icon="💼", color="primary", article_count=0),
+        models.Category(name="Technology", icon="💻", color="purple", article_count=0),
+        models.Category(name="Health", icon="🏥", color="success", article_count=0),
+        models.Category(name="Sports", icon="🏈", color="danger", article_count=0),
         models.Category(
-            name="Entertainment", icon="🎭", color="warning", article_count=20
+            name="Entertainment", icon="🎭", color="warning", article_count=0
         ),
-        models.Category(name="Science", icon="🔬", color="info", article_count=16),
-        models.Category(name="Politics", icon="🏛️", color="secondary", article_count=22),
+        models.Category(name="Science", icon="🔬", color="info", article_count=0),
+        models.Category(name="Politics", icon="🏛️", color="secondary", article_count=0),
         models.Category(
-            name="Environment", icon="🌍", color="success", article_count=14
+            name="Environment", icon="🌍", color="success", article_count=0
         ),
     ]
     db.add_all(categories)

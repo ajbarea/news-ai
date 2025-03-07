@@ -503,3 +503,53 @@ def get_user_preferences(
         .all()
     )
     return preferences
+
+
+@app.get("/search", response_model=List[schemas.ArticleDetail], tags=["Articles"])
+def search_articles(
+    query: str,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+):
+    """
+    Search for articles across multiple fields including title, summary,
+    source name, and category name.
+
+    This endpoint searches for the provided query string in article titles,
+    summaries, and other relevant text fields, as well as related entities.
+
+    Args:
+        query: The search term to look for
+        limit: Maximum number of articles to return
+        db: Database session
+
+    Returns:
+        List[ArticleDetail]: List of articles that match the search query
+    """
+    if not query or len(query.strip()) < 2:
+        raise HTTPException(
+            status_code=400, detail="Search query must be at least 2 characters"
+        )
+
+    # Convert query to lowercase for case-insensitive search
+    search_term = f"%{query.lower()}%"
+
+    # Search across multiple text columns with explicit joins
+    articles = (
+        db.query(models.Article)
+        .join(models.Source, models.Article.source_id == models.Source.id)
+        .join(models.Category, models.Article.category_id == models.Category.id)
+        .filter(
+            # Use ILIKE for case-insensitive search (PostgreSQL specific)
+            # Search in multiple columns including relationships
+            models.Article.title.ilike(search_term)
+            | models.Article.summary.ilike(search_term)
+            | models.Source.name.ilike(search_term)
+            | models.Category.name.ilike(search_term)
+        )
+        .order_by(models.Article.published_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    return articles

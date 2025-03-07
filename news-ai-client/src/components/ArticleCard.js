@@ -49,7 +49,7 @@ const ArticleActions = ({ article, source, category }) => {
   );
 };
 
-const ArticleMetadata = ({ category, date, source, sourceLogo }) => {
+const ArticleMetadata = ({ category, date, source, sourceLogo, subscriptionRequired }) => {
   const calculateTimeAgo = (dateString) => {
     const publishDate = new Date(dateString);
     const currentDate = new Date();
@@ -101,6 +101,11 @@ const ArticleMetadata = ({ category, date, source, sourceLogo }) => {
           </Badge>
         </div>
       )}
+      {subscriptionRequired && (
+        <div className="me-1">
+          <Badge color="warning" className="text-dark">Subscription</Badge>
+        </div>
+      )}
       <div><small className="text-muted">5 min read</small></div>
     </div>
   );
@@ -112,6 +117,7 @@ function ArticleCard({ article }) {
   // Extract source information
   let sourceName = "Unknown";
   let sourceLogo = null;
+  let subscriptionRequired = false;
 
   // Add debugging for sourceLogo
   if (article.source && article.source.logo_url) {
@@ -122,6 +128,7 @@ function ArticleCard({ article }) {
     if (typeof article.source === 'object') {
       sourceName = article.source.name || "Unknown";
       sourceLogo = article.source.logo_url || null;
+      subscriptionRequired = article.source.subscription_required || false;
     } else {
       sourceName = article.source;
     }
@@ -158,6 +165,7 @@ function ArticleCard({ article }) {
           date={date}
           source={sourceName}
           sourceLogo={sourceLogo}
+          subscriptionRequired={subscriptionRequired}
         />
         <CardText>{article.summary}</CardText>
       </CardBody>

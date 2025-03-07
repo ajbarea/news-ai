@@ -14,6 +14,7 @@ from sqlalchemy import (
     Text,
     TIMESTAMP,
     func,
+    event,
 )
 from sqlalchemy.orm import relationship
 from .database.database import Base
@@ -164,3 +165,38 @@ class Article(Base):
     # Relationships
     category = relationship("Category", back_populates="articles")
     source = relationship("Source", back_populates="articles")
+
+
+# Event listeners to update article counts in categories when articles are added/deleted
+@event.listens_for(Article, "after_insert")
+def increment_category_article_count(mapper, connection, target):
+    """
+    Increment the article_count of the category when a new article is added.
+
+    Args:
+        mapper: The mapper which is the target of this event
+        connection: The Connection being used
+        target: The instance being inserted
+    """
+    connection.execute(
+        Category.__table__.update()
+        .where(Category.id == target.category_id)
+        .values(article_count=Category.article_count + 1)
+    )
+
+
+@event.listens_for(Article, "after_delete")
+def decrement_category_article_count(mapper, connection, target):
+    """
+    Decrement the article_count of the category when an article is deleted.
+
+    Args:
+        mapper: The mapper which is the target of this event
+        connection: The Connection being used
+        target: The instance being deleted
+    """
+    connection.execute(
+        Category.__table__.update()
+        .where(Category.id == target.category_id)
+        .values(article_count=func.greatest(Category.article_count - 1, 0))
+    )
