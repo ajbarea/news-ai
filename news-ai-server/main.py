@@ -464,7 +464,8 @@ def get_articles(
 ):
     """
     Get news articles with optional filtering by category.
-    If a user is authenticated, articles from blacklisted sources are excluded.
+    If a user is authenticated, articles from blacklisted sources and individually
+    blacklisted articles are excluded.
 
     Args:
         skip: Number of articles to skip (pagination)
@@ -482,7 +483,7 @@ def get_articles(
     if category_id:
         query = query.filter(models.Article.category_id == category_id)
 
-    # Filter out blacklisted sources if user is authenticated
+    # Filter out blacklisted sources and articles if user is authenticated
     if current_user:
         print(f"User authenticated: {current_user.username} (ID: {current_user.id})")
 
@@ -507,12 +508,28 @@ def get_articles(
                 f"Blacklisted source names: {[name[0] for name in blacklisted_source_names]}"
             )
 
-            # Exclude articles from sources in the blacklist - use a more explicit approach
+            # Exclude articles from sources in the blacklist
             query = query.filter(
                 models.Article.source_id.notin_(blacklisted_source_ids)
             )
         else:
             print("No blacklisted sources found for this user")
+
+        # Get all blacklisted article IDs for this user
+        blacklisted_articles_query = db.query(
+            models.UserArticleBlacklist.article_id
+        ).filter(models.UserArticleBlacklist.user_id == current_user.id)
+
+        # Execute the query to get the actual IDs for debugging
+        blacklisted_article_ids = [row[0] for row in blacklisted_articles_query.all()]
+
+        if blacklisted_article_ids:
+            print(f"Found blacklisted articles: {blacklisted_article_ids}")
+
+            # Exclude individually blacklisted articles
+            query = query.filter(models.Article.id.notin_(blacklisted_article_ids))
+        else:
+            print("No blacklisted articles found for this user")
     else:
         print("No authenticated user - showing all articles")
 
@@ -526,13 +543,24 @@ def get_articles(
 
     # Debug information about returned articles
     print(f"Returning {len(articles)} articles")
-    if current_user and blacklisted_source_ids:
-        # Verify none of the returned articles are from blacklisted sources
-        for article in articles:
-            if article.source_id in blacklisted_source_ids:
-                print(
-                    f"WARNING: Article {article.id} from blacklisted source {article.source_id} was not filtered!"
-                )
+
+    # Verify filtering worked correctly if user is authenticated
+    if current_user:
+        # Check for articles from blacklisted sources
+        if "blacklisted_source_ids" in locals() and blacklisted_source_ids:
+            for article in articles:
+                if article.source_id in blacklisted_source_ids:
+                    print(
+                        f"WARNING: Article {article.id} from blacklisted source {article.source_id} was not filtered!"
+                    )
+
+        # Check for individually blacklisted articles
+        if "blacklisted_article_ids" in locals() and blacklisted_article_ids:
+            for article in articles:
+                if article.id in blacklisted_article_ids:
+                    print(
+                        f"WARNING: Blacklisted article {article.id} was not filtered!"
+                    )
 
     return articles
 
@@ -773,6 +801,140 @@ async def remove_blacklisted_source(
 
     if not blacklist_entry:
         raise HTTPException(status_code=404, detail="Source not found in blacklist")
+
+    db.delete(blacklist_entry)
+    db.commit()
+
+    return None
+
+
+@app.get(
+    "/users/me/blacklisted-articles",
+    response_model=List[schemas.Article],
+    tags=["Users"],
+)
+async def get_blacklisted_articles(
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """
+    Get all articles that the current user has blacklisted.
+
+    Args:
+        current_user: Current authenticated user (from token)
+        db: Database session
+
+    Returns:
+        List[Article]: List of blacklisted articles
+    """
+    blacklisted_article_ids = [
+        row[0]
+        for row in db.query(models.UserArticleBlacklist.article_id)
+        .filter(models.UserArticleBlacklist.user_id == current_user.id)
+        .all()
+    ]
+
+    articles = (
+        db.query(models.Article)
+        .filter(models.Article.id.in_(blacklisted_article_ids))
+        .all()
+    )
+    return articles
+
+
+@app.post(
+    "/users/me/blacklisted-articles",
+    response_model=schemas.Article,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Users"],
+)
+async def add_blacklisted_article(
+    article_data: schemas.UserArticleBlacklistCreate,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """
+    Add an article to the current user's blacklist.
+
+    Args:
+        article_data: Contains article_id to blacklist
+        current_user: Current authenticated user (from token)
+        db: Database session
+
+    Returns:
+        Article: The blacklisted article
+
+    Raises:
+        HTTPException: If article not found or already blacklisted
+    """
+    # Check if article exists
+    article = (
+        db.query(models.Article)
+        .filter(models.Article.id == article_data.article_id)
+        .first()
+    )
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    # Check if already blacklisted
+    existing = (
+        db.query(models.UserArticleBlacklist)
+        .filter(
+            models.UserArticleBlacklist.user_id == current_user.id,
+            models.UserArticleBlacklist.article_id == article_data.article_id,
+        )
+        .first()
+    )
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Article already blacklisted")
+
+    # Create blacklist entry
+    blacklist_entry = models.UserArticleBlacklist(
+        user_id=current_user.id, article_id=article_data.article_id
+    )
+
+    db.add(blacklist_entry)
+    db.commit()
+
+    return article
+
+
+@app.delete(
+    "/users/me/blacklisted-articles/{article_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["Users"],
+)
+async def remove_blacklisted_article(
+    article_id: int,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """
+    Remove an article from the current user's blacklist.
+
+    Args:
+        article_id: ID of the article to remove from blacklist
+        current_user: Current authenticated user (from token)
+        db: Database session
+
+    Returns:
+        None: 204 No Content response on successful removal
+
+    Raises:
+        HTTPException: If article not found in blacklist
+    """
+    blacklist_entry = (
+        db.query(models.UserArticleBlacklist)
+        .filter(
+            models.UserArticleBlacklist.user_id == current_user.id,
+            models.UserArticleBlacklist.article_id == article_id,
+        )
+        .first()
+    )
+
+    if not blacklist_entry:
+        raise HTTPException(status_code=404, detail="Article not found in blacklist")
 
     db.delete(blacklist_entry)
     db.commit()

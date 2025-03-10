@@ -43,6 +43,7 @@ class User(Base):
     # Relationships
     preferences = relationship("UserPreference", back_populates="user")
     blacklisted_sources = relationship("UserSourceBlacklist", back_populates="user")
+    blacklisted_articles = relationship("UserArticleBlacklist", back_populates="user")
 
 
 class Category(Base):
@@ -165,6 +166,30 @@ class Article(Base):
     # Relationships
     category = relationship("Category", back_populates="articles")
     source = relationship("Source", back_populates="articles")
+    blacklisted_by = relationship("UserArticleBlacklist", back_populates="article")
+
+
+class UserArticleBlacklist(Base):
+    """
+    UserArticleBlacklist model representing articles a user has chosen to hide.
+
+    This association table connects users to articles they don't want
+    to see in their feed.
+    """
+
+    __tablename__ = "user_article_blacklist"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    article_id = Column(
+        Integer, ForeignKey("articles.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # Relationships
+    user = relationship("User", back_populates="blacklisted_articles")
+    article = relationship("Article", back_populates="blacklisted_by")
 
 
 # Event listeners to update article counts in categories when articles are added/deleted

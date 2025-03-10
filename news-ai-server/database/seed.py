@@ -536,6 +536,47 @@ def seed_user_source_blacklist(db: Session):
     )
 
 
+def seed_user_article_blacklist(db: Session):
+    """
+    Seed the database with user article blacklist entries.
+    Skips seeding if blacklist entries already exist.
+
+    Args:
+        db (Session): Database session
+    """
+    existing_blacklists = db.query(models.UserArticleBlacklist).count()
+    if existing_blacklists > 0:
+        print(
+            "User article blacklist entries already exist, skipping seeding blacklists."
+        )
+        return
+
+    # Get ajbarea user
+    user = db.query(models.User).filter_by(username="ajbarea").first()
+
+    # Get first article (demo purposes)
+    article = db.query(models.Article).first()
+
+    # Verify user and article were found
+    if not user or not article:
+        if not user:
+            print("Warning: User 'ajbarea' not found.")
+        if not article:
+            print("Warning: No articles found.")
+        return
+
+    # Create blacklist entry
+    blacklist_entry = models.UserArticleBlacklist(
+        user_id=user.id, article_id=article.id
+    )
+
+    db.add(blacklist_entry)
+    db.commit()
+    print(
+        f"Seeded 1 user article blacklist entry: User '{user.username}' hiding article '{article.title}'"
+    )
+
+
 def teardown():
     """
     Drop all tables in the database to start with a clean slate.
@@ -565,6 +606,7 @@ def seed_all():
         seed_sources(db)
         seed_articles(db)
         seed_user_source_blacklist(db)
+        seed_user_article_blacklist(db)  # Add this line
         print("Database seeding complete!")
     finally:
         db.close()

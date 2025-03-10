@@ -21,6 +21,8 @@ import {
 import { FaBookmark, FaArrowRight, FaEllipsisV, FaBan, FaThumbsDown, FaMicrophone, FaSyncAlt } from "react-icons/fa";
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/authService';
+import SourceService from '../services/sourceService';
+import ArticleService from '../services/articleService';
 
 const ArticleActions = ({ article, source, sourceId, category }) => {
   const { isAuthenticated } = useAuth();
@@ -29,55 +31,84 @@ const ArticleActions = ({ article, source, sourceId, category }) => {
 
   const handleAction = async (action, target, targetId) => {
     console.log(`${action}: ${target} (ID: ${targetId})`);
+    console.log('Article object:', article);  // Debug: Log the full article object
 
     // Reset feedback
     setFeedback({ show: false, message: '', type: 'success' });
 
-    if (action === 'Block source' && targetId) {
-      if (!isAuthenticated()) {
-        setFeedback({
-          show: true,
-          message: 'Please log in to block sources',
-          type: 'warning'
-        });
-        return;
-      }
+    // Check authentication
+    if (!isAuthenticated()) {
+      setFeedback({
+        show: true,
+        message: 'Please log in to perform this action',
+        type: 'warning'
+      });
+      return;
+    }
 
-      try {
-        setIsLoading(true);
-        await apiClient.post('/users/me/blacklisted-sources', {
-          source_id: targetId
-        });
+    // Validate targetId
+    if (!targetId) {
+      console.error(`Missing targetId for action: ${action}`);
+      setFeedback({
+        show: true,
+        message: 'Error: Could not identify item to perform action on',
+        type: 'danger'
+      });
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      if (action === 'Block source') {
+        console.log(`Attempting to block source with ID: ${targetId}`);
+        await SourceService.addToBlacklist(targetId);
 
         setFeedback({
           show: true,
           message: `${target} has been added to your blacklist`,
           type: 'success'
         });
+      }
+      else if (action === 'Hide article') {
+        console.log(`Attempting to hide article with ID: ${targetId}`);
 
-        // Optionally refresh the page or update article list
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+        // Convert the ID to a number if needed
+        const articleId = parseInt(targetId, 10) || targetId;
+        console.log(`Using article ID: ${articleId} (type: ${typeof articleId})`);
 
-      } catch (error) {
-        console.error('Error blocking source:', error);
-        let errorMessage = 'Failed to block source';
-
-        if (error.response && error.response.data && error.response.data.detail) {
-          errorMessage = error.response.data.detail;
-        }
+        await ArticleService.addToBlacklist(articleId);
 
         setFeedback({
           show: true,
-          message: errorMessage,
-          type: 'danger'
+          message: `Article has been hidden`,
+          type: 'success'
         });
-      } finally {
-        setIsLoading(false);
       }
+
+      // Optionally refresh the page or update article list
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+
+    } catch (error) {
+      console.error(`Error ${action.toLowerCase()}:`, error);
+      console.error('Error details:', error.response?.data || 'No response data');
+
+      let errorMessage = `Failed to ${action.toLowerCase()}`;
+
+      if (error.response && error.response.data && error.response.data.detail) {
+        errorMessage = error.response.data.detail;
+      }
+
+      setFeedback({
+        show: true,
+        message: errorMessage,
+        type: 'danger'
+      });
+    } finally {
+      setIsLoading(false);
     }
-    // Handle other actions...
   };
 
   return (
@@ -106,7 +137,11 @@ const ArticleActions = ({ article, source, sourceId, category }) => {
           <DropdownItem onClick={() => handleAction('Block source', source, sourceId)}>
             <FaBan className="me-2" /> Block source: {source}
           </DropdownItem>
-          <DropdownItem onClick={() => handleAction('Hide article', article.title, article.id)}>
+          <DropdownItem
+            onClick={() => {
+              console.log('Clicked Hide article with ID:', article.id);
+              handleAction('Hide article', article.title, article.id);
+            }}>
             <FaThumbsDown className="me-2" /> Hide article: {article.title.length > 30 ? `${article.title.substring(0, 30)}...` : article.title}
           </DropdownItem>
         </DropdownMenu>

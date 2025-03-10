@@ -225,3 +225,32 @@ class UserSourceBlacklist(UserSourceBlacklistBase):
 
     class Config:
         from_attributes = True
+
+
+class UserArticleBlacklistBase(BaseModel):
+    """
+    Base schema for user article blacklist operations.
+    """
+
+    article_id: int
+
+
+class UserArticleBlacklistCreate(UserArticleBlacklistBase):
+    """
+    Schema for adding an article to a user's blacklist.
+    """
+
+    pass
+
+
+class UserArticleBlacklist(UserArticleBlacklistBase):
+    """
+    Complete schema for user article blacklist responses.
+    """
+
+    id: int
+    user_id: int
+    article: Optional[Article] = None
+
+    class Config:
+        from_attributes = True
