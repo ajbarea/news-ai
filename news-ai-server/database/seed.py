@@ -383,11 +383,11 @@ def seed_articles(db: Session):
             summary="NPR has compiled a list of the 25 most-anticipated video games of 2025, including Grand Theft Auto 6 and Nintendo Switch 2. The lineup features a mix of sequels, new releases, and indie titles across various genres.",
         ),
         models.Article(  # Bloomberg - Politics
-            title="Europe’s Defenses Risk Faltering Within Weeks Without US Support",
+            title="Europe's Defenses Risk Faltering Within Weeks Without US Support",
             category_id=politics_category.id,
             source_id=bloomberg_source.id,
             url="https://www.bloomberg.com/news/features/2025-03-06/europe-s-defenses-against-russia-invasion-would-last-weeks-without-trump-support?srnd=phx-politics",
-            published_at=datetime.strptime("2025-06-06 14:43:00", "%Y-%m-%d %H:%M:%S"),
+            published_at=datetime.strptime("2025-03-07 08:03:00", "%Y-%m-%d %H:%M:%S"),
             image_url="https://assets.bwbx.io/images/users/iqjWHBFdfxIU/iysTXSayk8b8/v1/2000x1334.webp",
             summary="Europe's defenses against a potential Russian invasion would falter within weeks without U.S. support, according to a new report. The findings underscore the importance of transatlantic cooperation in maintaining security in the region.",
         ),
@@ -488,6 +488,54 @@ def seed_articles(db: Session):
     print(f"Seeded {len(articles)} articles")
 
 
+def seed_user_source_blacklist(db: Session):
+    """
+    Seed the database with user source blacklist entries.
+    Skips seeding if blacklist entries already exist.
+
+    Args:
+        db (Session): Database session
+    """
+    existing_blacklists = db.query(models.UserSourceBlacklist).count()
+    if existing_blacklists > 0:
+        print(
+            "User source blacklist entries already exist, skipping seeding blacklists."
+        )
+        return
+
+    # Get ajbarea user
+    user = db.query(models.User).filter_by(username="ajbarea").first()
+
+    # Get ABC News source
+    abc_source = db.query(models.Source).filter_by(name="ABC News").first()
+
+    # Verify user and source were found
+    if not user or not abc_source:
+        if not user:
+            print("Warning: User 'ajbarea' not found. Available users:")
+            users = db.query(models.User).all()
+            for u in users:
+                print(f" - {u.username}")
+
+        if not abc_source:
+            print("Warning: Source 'ABC News' not found. Available sources:")
+            sources = db.query(models.Source).all()
+            for s in sources:
+                print(f" - {s.name}")
+        return
+
+    # Create blacklist entry
+    blacklist_entry = models.UserSourceBlacklist(
+        user_id=user.id, source_id=abc_source.id
+    )
+
+    db.add(blacklist_entry)
+    db.commit()
+    print(
+        f"Seeded 1 user source blacklist entry: User '{user.username}' blocking '{abc_source.name}'"
+    )
+
+
 def teardown():
     """
     Drop all tables in the database to start with a clean slate.
@@ -516,6 +564,7 @@ def seed_all():
         seed_categories(db)
         seed_sources(db)
         seed_articles(db)
+        seed_user_source_blacklist(db)
         print("Database seeding complete!")
     finally:
         db.close()

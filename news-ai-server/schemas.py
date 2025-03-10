@@ -196,3 +196,32 @@ class UserPreferenceUpdate(BaseModel):
 
     score: Optional[int] = None
     blacklisted: Optional[bool] = None
+
+
+class UserSourceBlacklistBase(BaseModel):
+    """
+    Base schema for user source blacklist operations.
+    """
+
+    source_id: int
+
+
+class UserSourceBlacklistCreate(UserSourceBlacklistBase):
+    """
+    Schema for adding a source to a user's blacklist.
+    """
+
+    pass
+
+
+class UserSourceBlacklist(UserSourceBlacklistBase):
+    """
+    Complete schema for user source blacklist responses.
+    """
+
+    id: int
+    user_id: int
+    source: Optional[Source] = None
+
+    class Config:
+        from_attributes = True

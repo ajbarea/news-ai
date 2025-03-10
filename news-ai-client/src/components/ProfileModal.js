@@ -11,11 +11,14 @@ import {
     Input,
     Row,
     Col,
-    Alert
+    Alert,
+    Badge,
+    Spinner
 } from 'reactstrap';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import SettingsModal from './SettingsModal';
+import SourceService from '../services/sourceService';
 
 function ProfileModal({ isOpen, toggle }) {
     const { currentUser, updateProfile } = useAuth();
@@ -31,6 +34,11 @@ function ProfileModal({ isOpen, toggle }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState({});
     const [showSettings, setShowSettings] = useState(false);
+    const [blacklistedSources, setBlacklistedSources] = useState([]);
+    const [loadingSources, setLoadingSources] = useState(false);
+    const [unblockModal, setUnblockModal] = useState(false);
+    const [selectedSource, setSelectedSource] = useState(null);
+    const [unblockLoading, setUnblockLoading] = useState(false);
 
     useEffect(() => {
         if (currentUser) {
@@ -41,8 +49,25 @@ function ProfileModal({ isOpen, toggle }) {
             };
             setFormData(userData);
             setOriginalData(userData);
+
+            // Fetch blacklisted sources when modal opens and user is authenticated
+            if (isOpen) {
+                fetchBlacklistedSources();
+            }
         }
     }, [currentUser, isOpen]);
+
+    const fetchBlacklistedSources = async () => {
+        try {
+            setLoadingSources(true);
+            const sources = await SourceService.getBlacklistedSources();
+            setBlacklistedSources(sources);
+        } catch (error) {
+            console.error('Error fetching blacklisted sources:', error);
+        } finally {
+            setLoadingSources(false);
+        }
+    };
 
     const handleStartEditing = () => {
         if (currentUser) {
@@ -157,6 +182,85 @@ function ProfileModal({ isOpen, toggle }) {
         setShowSettings(!showSettings);
     };
 
+    // Handler for when a user clicks on a blacklisted source badge
+    const handleUnblockSource = (source) => {
+        setSelectedSource(source);
+        setUnblockModal(true);
+    };
+
+    // Unblock the selected source
+    const confirmUnblock = async () => {
+        if (!selectedSource) return;
+
+        try {
+            setUnblockLoading(true);
+            await SourceService.removeFromBlacklist(selectedSource.id);
+
+            // Show success message
+            setMessage({
+                type: 'success',
+                text: `Successfully unblocked ${selectedSource.name}`
+            });
+
+            // Refresh the list of blacklisted sources
+            await fetchBlacklistedSources();
+
+            // Close the modal
+            setUnblockModal(false);
+            setSelectedSource(null);
+
+            // Clear message after delay
+            setTimeout(() => setMessage(null), 3000);
+
+        } catch (error) {
+            console.error('Error unblocking source:', error);
+            setMessage({
+                type: 'danger',
+                text: `Failed to unblock ${selectedSource.name}. Please try again.`
+            });
+        } finally {
+            setUnblockLoading(false);
+        }
+    };
+
+    // Cancel the unblock action
+    const cancelUnblock = () => {
+        setUnblockModal(false);
+        setSelectedSource(null);
+    };
+
+    // Render a list item for each blacklisted source
+    const renderBlacklistedSources = () => {
+        if (loadingSources) {
+            return <Spinner size="sm" color="primary" className="me-2" />;
+        }
+
+        if (blacklistedSources.length === 0) {
+            return <p className="mb-0 text-muted">No sources blocked</p>;
+        }
+
+        return (
+            <div className="blacklisted-sources">
+                {blacklistedSources.map(source => (
+                    <Badge
+                        key={source.id}
+                        color="danger"
+                        className="me-1 mb-1"
+                        style={{
+                            padding: "5px 8px",
+                            cursor: "pointer",
+                            transition: "all 0.2s ease"
+                        }}
+                        onClick={() => handleUnblockSource(source)}
+                        title={`Click to unblock ${source.name}`}
+                    >
+                        {source.name} ×
+                    </Badge>
+                ))}
+            </div>
+        );
+    };
+
     return (
         <>
             <Modal isOpen={isOpen && !showSettings} toggle={toggle} size="lg">
@@ -185,8 +289,8 @@ function ProfileModal({ isOpen, toggle }) {
                             <Row className="mt-4">
                                 <Col md="6" className="mb-3">
                                     <div className="border rounded p-3">
-                                        <h5>Joined</h5>
-                                        <p className="mb-0">{new Date().toLocaleDateString()}</p>
+                                        <h5>Blocked Sources</h5>
+                                        {renderBlacklistedSources()}
                                     </div>
                                 </Col>
                                 <Col md="6" className="mb-3">
@@ -269,16 +373,43 @@ function ProfileModal({ isOpen, toggle }) {
                     )}
                 </ModalFooter>
             </Modal>
-            
+
             {showSettings && (
-                <SettingsModal 
-                    isOpen={showSettings} 
+                <SettingsModal
+                    isOpen={showSettings}
                     toggle={() => {
                         toggleSettings();
                         // Don't close the profile modal when settings closes
-                    }} 
+                    }}
                 />
             )}
+
+            {/* Unblock Source Confirmation Modal */}
+            <Modal isOpen={unblockModal} toggle={cancelUnblock} size="sm">
+                <ModalHeader toggle={cancelUnblock}>
+                    Unblock Source
+                </ModalHeader>
+                <ModalBody>
+                    Are you sure you want to unblock <strong>{selectedSource?.name}</strong>?
+                    Articles from this source will appear in your feed again.
+                </ModalBody>
+                <ModalFooter>
+                    <Button
+                        color="primary"
+                        onClick={confirmUnblock}
+                        disabled={unblockLoading}
+                    >
+                        {unblockLoading ? <Spinner size="sm" /> : 'Yes, Unblock'}
+                    </Button>
+                    <Button
+                        color="secondary"
+                        onClick={cancelUnblock}
+                        disabled={unblockLoading}
+                    >
+                        Cancel
+                    </Button>
+                </ModalFooter>
+            </Modal>
         </>
     );
 }

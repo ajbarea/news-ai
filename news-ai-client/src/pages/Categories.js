@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Container, Row, Col, Card, CardBody, CardTitle, CardText, Input, Button, InputGroup, Spinner } from 'reactstrap';
-import axios from 'axios';
-import { API_URL } from '../services/authService';
+import { apiClient } from '../services/authService';
 
 function Categories() {
   const [categories, setCategories] = useState([]);
@@ -29,7 +28,7 @@ function Categories() {
         setLoading(true);
         loadingRef.current = true;
         // Add a timeout to the request to prevent it from hanging
-        const response = await axios.get(`${API_URL}/categories`, {
+        const response = await apiClient.get('/categories', {
           timeout: 10000 // 10 seconds timeout
         });
         console.log('Categories data received:', response.data);
@@ -82,7 +81,7 @@ function Categories() {
       setCategoryArticles([]);
 
       console.log(`Fetching articles for category ID: ${categoryId}`);
-      const response = await axios.get(`${API_URL}/articles`, {
+      const response = await apiClient.get('/articles', {
         params: { category_id: categoryId },
         timeout: 10000
       });
@@ -153,7 +152,7 @@ function Categories() {
       setLastSearchQuery(searchQuery.trim()); // Store the query before clearing it
       setShowNoResultsMessage(false);
 
-      const response = await axios.get(`${API_URL}/search`, {
+      const response = await apiClient.get('/search', {
         params: { query: searchQuery.trim() },
         timeout: 10000
       });

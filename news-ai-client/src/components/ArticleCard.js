@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Card,
   CardBody,
@@ -15,37 +15,103 @@ import {
   DropdownToggle,
   DropdownMenu,
   DropdownItem,
-  UncontrolledTooltip
+  UncontrolledTooltip,
+  Alert
 } from 'reactstrap';
 import { FaBookmark, FaArrowRight, FaEllipsisV, FaBan, FaThumbsDown, FaMicrophone, FaSyncAlt } from "react-icons/fa";
+import { useAuth } from '../context/AuthContext';
+import { apiClient } from '../services/authService';
 
-const ArticleActions = ({ article, source, category }) => {
-  const handleAction = (action, target) => {
-    console.log(`${action}: ${target}`);
-    // Implementation to be added
+const ArticleActions = ({ article, source, sourceId, category }) => {
+  const { currentUser, isAuthenticated } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [feedback, setFeedback] = useState({ show: false, message: '', type: 'success' });
+
+  const handleAction = async (action, target, targetId) => {
+    console.log(`${action}: ${target} (ID: ${targetId})`);
+
+    // Reset feedback
+    setFeedback({ show: false, message: '', type: 'success' });
+
+    if (action === 'Block source' && targetId) {
+      if (!isAuthenticated()) {
+        setFeedback({
+          show: true,
+          message: 'Please log in to block sources',
+          type: 'warning'
+        });
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        await apiClient.post('/users/me/blacklisted-sources', {
+          source_id: targetId
+        });
+
+        setFeedback({
+          show: true,
+          message: `${target} has been added to your blacklist`,
+          type: 'success'
+        });
+
+        // Optionally refresh the page or update article list
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+
+      } catch (error) {
+        console.error('Error blocking source:', error);
+        let errorMessage = 'Failed to block source';
+
+        if (error.response && error.response.data && error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        }
+
+        setFeedback({
+          show: true,
+          message: errorMessage,
+          type: 'danger'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    // Handle other actions...
   };
 
   return (
-    <UncontrolledDropdown>
-      <DropdownToggle
-        color="transparent"
-        size="sm"
-        className="bg-light bg-opacity-75 rounded-circle"
-      >
-        <FaEllipsisV />
-      </DropdownToggle>
-      <DropdownMenu end>
-        <DropdownItem onClick={() => handleAction('Show less about', category)}>
-          <FaThumbsDown className="me-2" /> Show less about: {category}
-        </DropdownItem>
-        <DropdownItem onClick={() => handleAction('Block source', source)}>
-          <FaBan className="me-2" /> Block source: {source}
-        </DropdownItem>
-        <DropdownItem onClick={() => handleAction('Hide article', article.title)}>
-          <FaThumbsDown className="me-2" /> Hide article: {article.title.length > 30 ? `${article.title.substring(0, 30)}...` : article.title}
-        </DropdownItem>
-      </DropdownMenu>
-    </UncontrolledDropdown>
+    <>
+      {feedback.show && (
+        <div className="position-fixed top-0 end-0 p-3" style={{ zIndex: 1050 }}>
+          <Alert color={feedback.type} toggle={() => setFeedback({ ...feedback, show: false })}>
+            {feedback.message}
+          </Alert>
+        </div>
+      )}
+
+      <UncontrolledDropdown>
+        <DropdownToggle
+          color="transparent"
+          size="sm"
+          className="bg-light bg-opacity-75 rounded-circle"
+          disabled={isLoading}
+        >
+          <FaEllipsisV />
+        </DropdownToggle>
+        <DropdownMenu end>
+          <DropdownItem onClick={() => handleAction('Show less about', category)}>
+            <FaThumbsDown className="me-2" /> Show less about: {category}
+          </DropdownItem>
+          <DropdownItem onClick={() => handleAction('Block source', source, sourceId)}>
+            <FaBan className="me-2" /> Block source: {source}
+          </DropdownItem>
+          <DropdownItem onClick={() => handleAction('Hide article', article.title, article.id)}>
+            <FaThumbsDown className="me-2" /> Hide article: {article.title.length > 30 ? `${article.title.substring(0, 30)}...` : article.title}
+          </DropdownItem>
+        </DropdownMenu>
+      </UncontrolledDropdown>
+    </>
   );
 };
 
@@ -140,6 +206,7 @@ function ArticleCard({ article }) {
   let sourceName = "Unknown";
   let sourceLogo = null;
   let subscriptionRequired = false;
+  let sourceId = null;
 
   // Add debugging for sourceLogo
   if (article.source && article.source.logo_url) {
@@ -151,6 +218,7 @@ function ArticleCard({ article }) {
       sourceName = article.source.name || "Unknown";
       sourceLogo = article.source.logo_url || null;
       subscriptionRequired = article.source.subscription_required || false;
+      sourceId = article.source.id || null;
     } else {
       sourceName = article.source;
     }
@@ -168,7 +236,12 @@ function ArticleCard({ article }) {
   return (
     <Card className="h-100 shadow-sm position-relative">
       <div className="position-absolute top-0 end-0 mt-2 me-2 z-index-1">
-        <ArticleActions article={article} source={sourceName} category={categoryName} />
+        <ArticleActions
+          article={article}
+          source={sourceName}
+          sourceId={sourceId}
+          category={categoryName}
+        />
       </div>
 
       <div className="p-1 pt-1">

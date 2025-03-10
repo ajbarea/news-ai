@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Button, ButtonGroup, Card, CardText, Spinner } from 'reactstrap';
-import axios from 'axios';
 import ArticleCard from '../components/ArticleCard';
-import { API_URL } from '../services/authService';
+import { apiClient } from '../services/authService';
 
 function HomePage() {
     const [articles, setArticles] = useState([]);
@@ -19,10 +18,10 @@ function HomePage() {
             try {
                 setLoading(true);
 
-                // Fetch both articles and categories in parallel
+                // Use apiClient to include the auth token
                 const [articlesRes, categoriesRes] = await Promise.all([
-                    axios.get(`${API_URL}/articles`),
-                    axios.get(`${API_URL}/categories`)
+                    apiClient.get('/articles'),
+                    apiClient.get('/categories')
                 ]);
 
                 setArticles(articlesRes.data);

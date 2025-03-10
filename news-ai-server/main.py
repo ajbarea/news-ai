@@ -6,7 +6,7 @@ accessing news articles, categories, sources, and user preferences.
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 import jwt
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -26,6 +26,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 # Password hashing and OAuth2 configuration
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+# Add optional OAuth2 scheme that doesn't raise an error if token is missing
+optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 
 # Define lifespan context manager for application startup/shutdown
@@ -189,6 +191,41 @@ async def get_current_user(
         raise credentials_exception
 
     return user
+
+
+async def get_optional_current_user(
+    token: Optional[str] = Depends(optional_oauth2_scheme),
+    db: Session = Depends(get_db),
+):
+    """
+    Get the current authenticated user from a JWT token if available.
+    Returns None instead of raising an exception if token is invalid or not provided.
+    Used as a dependency for endpoints that can work with or without authentication.
+
+    Args:
+        token: The JWT token from the request
+        db: Database session
+
+    Returns:
+        User | None: The authenticated user or None if not authenticated
+    """
+    if token is None:
+        return None
+
+    try:
+        # Decode the JWT token
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if username is None:
+            return None
+
+        # Get the user from database
+        user = get_user_by_username(db, username=username)
+        return user
+    except jwt.PyJWTError:
+        return None
+    except Exception:
+        return None
 
 
 # API Routes
@@ -422,30 +459,81 @@ def get_articles(
     skip: int = 0,
     limit: int = 50,
     category_id: int = None,
+    current_user: Annotated[models.User, None] = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Get news articles with optional filtering by category.
+    If a user is authenticated, articles from blacklisted sources are excluded.
 
     Args:
         skip: Number of articles to skip (pagination)
         limit: Maximum number of articles to return
         category_id: Optional category ID to filter by
+        current_user: Optional current authenticated user (from token)
         db: Database session
 
     Returns:
         List[ArticleDetail]: List of articles with detailed information
     """
     query = db.query(models.Article)
+
+    # Filter by category if specified
     if category_id:
         query = query.filter(models.Article.category_id == category_id)
 
+    # Filter out blacklisted sources if user is authenticated
+    if current_user:
+        print(f"User authenticated: {current_user.username} (ID: {current_user.id})")
+
+        # Get all blacklisted source IDs for this user
+        blacklisted_sources_query = db.query(
+            models.UserSourceBlacklist.source_id
+        ).filter(models.UserSourceBlacklist.user_id == current_user.id)
+
+        # Execute the query to get the actual IDs for debugging
+        blacklisted_source_ids = [row[0] for row in blacklisted_sources_query.all()]
+
+        if blacklisted_source_ids:
+            print(f"Found blacklisted sources: {blacklisted_source_ids}")
+
+            # Get the names of blacklisted sources for better debugging
+            blacklisted_source_names = (
+                db.query(models.Source.name)
+                .filter(models.Source.id.in_(blacklisted_source_ids))
+                .all()
+            )
+            print(
+                f"Blacklisted source names: {[name[0] for name in blacklisted_source_names]}"
+            )
+
+            # Exclude articles from sources in the blacklist - use a more explicit approach
+            query = query.filter(
+                models.Article.source_id.notin_(blacklisted_source_ids)
+            )
+        else:
+            print("No blacklisted sources found for this user")
+    else:
+        print("No authenticated user - showing all articles")
+
+    # Apply pagination and ordering
     articles = (
         query.order_by(models.Article.published_at.desc())
         .offset(skip)
         .limit(limit)
         .all()
     )
+
+    # Debug information about returned articles
+    print(f"Returning {len(articles)} articles")
+    if current_user and blacklisted_source_ids:
+        # Verify none of the returned articles are from blacklisted sources
+        for article in articles:
+            if article.source_id in blacklisted_source_ids:
+                print(
+                    f"WARNING: Article {article.id} from blacklisted source {article.source_id} was not filtered!"
+                )
+
     return articles
 
 
@@ -558,3 +646,135 @@ def search_articles(
     )
 
     return articles
+
+
+@app.get(
+    "/users/me/blacklisted-sources", response_model=List[schemas.Source], tags=["Users"]
+)
+async def get_blacklisted_sources(
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """
+    Get all sources that the current user has blacklisted.
+
+    Args:
+        current_user: Current authenticated user (from token)
+        db: Database session
+
+    Returns:
+        List[Source]: List of blacklisted sources
+    """
+    blacklisted_source_ids = [
+        row[0]
+        for row in db.query(models.UserSourceBlacklist.source_id)
+        .filter(models.UserSourceBlacklist.user_id == current_user.id)
+        .all()
+    ]
+
+    sources = (
+        db.query(models.Source)
+        .filter(models.Source.id.in_(blacklisted_source_ids))
+        .all()
+    )
+    return sources
+
+
+@app.post(
+    "/users/me/blacklisted-sources",
+    response_model=schemas.Source,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Users"],
+)
+async def add_blacklisted_source(
+    source_data: schemas.UserSourceBlacklistCreate,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """
+    Add a source to the current user's blacklist.
+
+    Args:
+        source_data: Contains source_id to blacklist
+        current_user: Current authenticated user (from token)
+        db: Database session
+
+    Returns:
+        Source: The blacklisted source
+
+    Raises:
+        HTTPException: If source not found or already blacklisted
+    """
+    # Check if source exists
+    source = (
+        db.query(models.Source)
+        .filter(models.Source.id == source_data.source_id)
+        .first()
+    )
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+
+    # Check if already blacklisted
+    existing = (
+        db.query(models.UserSourceBlacklist)
+        .filter(
+            models.UserSourceBlacklist.user_id == current_user.id,
+            models.UserSourceBlacklist.source_id == source_data.source_id,
+        )
+        .first()
+    )
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Source already blacklisted")
+
+    # Create blacklist entry
+    blacklist_entry = models.UserSourceBlacklist(
+        user_id=current_user.id, source_id=source_data.source_id
+    )
+
+    db.add(blacklist_entry)
+    db.commit()
+
+    return source
+
+
+@app.delete(
+    "/users/me/blacklisted-sources/{source_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["Users"],
+)
+async def remove_blacklisted_source(
+    source_id: int,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """
+    Remove a source from the current user's blacklist.
+
+    Args:
+        source_id: ID of the source to remove from blacklist
+        current_user: Current authenticated user (from token)
+        db: Database session
+
+    Returns:
+        None: 204 No Content response on successful removal
+
+    Raises:
+        HTTPException: If source not found in blacklist
+    """
+    blacklist_entry = (
+        db.query(models.UserSourceBlacklist)
+        .filter(
+            models.UserSourceBlacklist.user_id == current_user.id,
+            models.UserSourceBlacklist.source_id == source_id,
+        )
+        .first()
+    )
+
+    if not blacklist_entry:
+        raise HTTPException(status_code=404, detail="Source not found in blacklist")
+
+    db.delete(blacklist_entry)
+    db.commit()
+
+    return None
