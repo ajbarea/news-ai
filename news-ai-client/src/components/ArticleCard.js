@@ -71,13 +71,31 @@ const ArticleMetadata = ({ category, date, source, sourceLogo, subscriptionRequi
     return `${Math.floor(diffInMonths / 12)}yr`;
   };
 
+  const badgeStyle = {
+    height: "24px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0 7px"
+  };
+
   return (
-    <div className="d-flex flex-wrap mb-2">
-      {category && <div className="me-1"><Badge color="primary" pill>{category}</Badge></div>}
-      {date && <div className="me-2"><small className="text-muted">{calculateTimeAgo(date)}</small></div>}
+    <div className="d-flex flex-nowrap align-items-center mb-2 overflow-hidden">
+      {category &&
+        <div className="me-1 flex-shrink-0">
+          <Badge color="primary" pill style={badgeStyle}>{category}</Badge>
+        </div>
+      }
+
+      {date &&
+        <div className="me-2 flex-shrink-0">
+          <small className="text-muted d-inline-block" style={{ lineHeight: "24px" }}>{calculateTimeAgo(date)}</small>
+        </div>
+      }
+
       {source && (
-        <div className="me-1">
-          <Badge color="secondary" pill className="d-flex align-items-center px-2">
+        <div className="me-1 flex-shrink-0">
+          <Badge color="secondary" pill style={badgeStyle}>
             {sourceLogo && (
               <img
                 src={sourceLogo}
@@ -101,12 +119,16 @@ const ArticleMetadata = ({ category, date, source, sourceLogo, subscriptionRequi
           </Badge>
         </div>
       )}
+
       {subscriptionRequired && (
-        <div className="me-1">
-          <Badge color="warning" className="text-dark">Subscription</Badge>
+        <div className="me-1 flex-shrink-0">
+          <Badge color="warning" className="text-dark" pill style={badgeStyle}>Sub</Badge>
         </div>
       )}
-      <div><small className="text-muted">5 min read</small></div>
+
+      <div className="flex-shrink-0">
+        <small className="text-muted d-inline-block" style={{ lineHeight: "24px" }}>5m read</small>
+      </div>
     </div>
   );
 };

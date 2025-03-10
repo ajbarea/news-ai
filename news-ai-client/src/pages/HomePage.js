@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Button, ButtonGroup, Card, CardText, Spinner } from 'reactstrap';
 import axios from 'axios';
 import ArticleCard from '../components/ArticleCard';
+import { API_URL } from '../services/authService';
 
 function HomePage() {
     const [articles, setArticles] = useState([]);
@@ -20,8 +21,8 @@ function HomePage() {
 
                 // Fetch both articles and categories in parallel
                 const [articlesRes, categoriesRes] = await Promise.all([
-                    axios.get('http://localhost:8000/articles'),
-                    axios.get('http://localhost:8000/categories')
+                    axios.get(`${API_URL}/articles`),
+                    axios.get(`${API_URL}/categories`)
                 ]);
 
                 setArticles(articlesRes.data);

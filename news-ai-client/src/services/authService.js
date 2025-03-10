@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8000'; // adjust to your FastAPI server address
+export const API_URL = 'http://localhost:8000';
 
 // Helper to manage tokens in localStorage
 const TokenService = {

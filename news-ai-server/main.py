@@ -14,8 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from .database.database import get_db, engine, Base
-from .database.seed import seed_all
+from .database.seed import seed_all, teardown
 from . import models, schemas
+from contextlib import asynccontextmanager
 
 # Security configuration
 SECRET_KEY = "4735ea57b2de730edcbb12a0e707f4cd9424378d2563611404e29b6a1c6b160e"
@@ -26,8 +27,22 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# Initialize FastAPI application
-app = FastAPI(title="News AI API")
+
+# Define lifespan context manager for application startup/shutdown
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan context manager to handle application startup and shutdown.
+    This replaces the deprecated on_event handlers.
+    """
+    # Startup: Initialize the database with seed data
+    teardown()
+    seed_all()
+    yield
+
+
+# Initialize FastAPI application with lifespan
+app = FastAPI(title="News AI API", lifespan=lifespan)
 
 # Add CORS middleware to allow cross-origin requests
 app.add_middleware(
@@ -40,16 +55,6 @@ app.add_middleware(
 
 # Create database tables on startup if they don't exist
 Base.metadata.create_all(bind=engine)
-
-
-# Database initialization on application startup
-@app.on_event("startup")
-def startup_db_client():
-    """
-    Initialize the database with seed data on application startup.
-    This ensures the database has categories, sources, and sample articles.
-    """
-    seed_all()
 
 
 # Authentication helper functions

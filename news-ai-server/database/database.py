@@ -4,18 +4,20 @@ This file handles the database connection setup using SQLAlchemy.
 It provides the database engine, session factory, and base class for models.
 """
 
+import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# PostgreSQL connection string
-# Format: postgresql://username:password@host:port/database_name
+# Load environment variables from .env file
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
-# Development database URL
-DEV_DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/postgres"
+# Get database URL from environment variable
+DATABASE_URL = os.environ.get("DEV_DATABASE_URL")
 
 # Create SQLAlchemy engine with the given connection string
-engine = create_engine(DEV_DATABASE_URL)
+engine = create_engine(DATABASE_URL)
 
 # Create a sessionmaker factory that will create new database sessions
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

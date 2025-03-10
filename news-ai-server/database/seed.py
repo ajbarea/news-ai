@@ -488,6 +488,20 @@ def seed_articles(db: Session):
     print(f"Seeded {len(articles)} articles")
 
 
+def teardown():
+    """
+    Drop all tables in the database to start with a clean slate.
+    This function is called during application startup to ensure
+    we can recreate and reseed the database.
+    """
+    try:
+        print("Dropping all database tables...")
+        Base.metadata.drop_all(bind=engine)
+        print("Database tables dropped successfully")
+    except Exception as e:
+        print(f"Error dropping database tables: {e}")
+
+
 def seed_all():
     """
     Seed all database tables with initial data.
