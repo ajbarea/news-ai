@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from .database.database import get_db, engine, Base
 from .database.seed import seed_all, teardown
 from . import models, schemas
@@ -21,7 +21,7 @@ from contextlib import asynccontextmanager
 # Security configuration
 SECRET_KEY = "4735ea57b2de730edcbb12a0e707f4cd9424378d2563611404e29b6a1c6b160e"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 90
 
 # Password hashing and OAuth2 configuration
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -464,8 +464,8 @@ def get_articles(
 ):
     """
     Get news articles with optional filtering by category.
-    If a user is authenticated, articles from blacklisted sources and individually
-    blacklisted articles are excluded.
+    If a user is authenticated, articles from blacklisted sources, blacklisted
+    categories, and individually blacklisted articles are excluded.
 
     Args:
         skip: Number of articles to skip (pagination)
@@ -486,6 +486,39 @@ def get_articles(
     # Filter out blacklisted sources and articles if user is authenticated
     if current_user:
         print(f"User authenticated: {current_user.username} (ID: {current_user.id})")
+
+        # Get all blacklisted category IDs for this user
+        blacklisted_categories_query = db.query(
+            models.UserPreference.category_id
+        ).filter(
+            models.UserPreference.user_id == current_user.id,
+            models.UserPreference.blacklisted.is_(True),
+        )
+
+        # Execute the query to get the actual IDs for debugging
+        blacklisted_category_ids = [
+            row[0] for row in blacklisted_categories_query.all()
+        ]
+
+        if blacklisted_category_ids:
+            print(f"Found blacklisted categories: {blacklisted_category_ids}")
+
+            # Get the names of blacklisted categories for better debugging
+            blacklisted_category_names = (
+                db.query(models.Category.name)
+                .filter(models.Category.id.in_(blacklisted_category_ids))
+                .all()
+            )
+            print(
+                f"Blacklisted category names: {[name[0] for name in blacklisted_category_names]}"
+            )
+
+            # Exclude articles from categories in the blacklist
+            query = query.filter(
+                models.Article.category_id.notin_(blacklisted_category_ids)
+            )
+        else:
+            print("No blacklisted categories found for this user")
 
         # Get all blacklisted source IDs for this user
         blacklisted_sources_query = db.query(
@@ -546,6 +579,14 @@ def get_articles(
 
     # Verify filtering worked correctly if user is authenticated
     if current_user:
+        # Check for articles from blacklisted categories
+        if "blacklisted_category_ids" in locals() and blacklisted_category_ids:
+            for article in articles:
+                if article.category_id in blacklisted_category_ids:
+                    print(
+                        f"WARNING: Article {article.id} from blacklisted category {article.category_id} was not filtered!"
+                    )
+
         # Check for articles from blacklisted sources
         if "blacklisted_source_ids" in locals() and blacklisted_source_ids:
             for article in articles:
@@ -608,7 +649,7 @@ def get_user_preferences(
         db: Database session
 
     Returns:
-        List[UserPreference]: User's preferences
+        List[UserPreference]: User's preferences with category details
 
     Raises:
         HTTPException: If not authorized to access these preferences
@@ -618,11 +659,26 @@ def get_user_preferences(
             status_code=403, detail="Not authorized to access these preferences"
         )
 
+    # Get preferences with eager loading of the category relationship
     preferences = (
         db.query(models.UserPreference)
+        .options(joinedload(models.UserPreference.category))
         .filter(models.UserPreference.user_id == user_id)
         .all()
     )
+
+    # Add debugging to verify preferences and their blacklisted status
+    print(f"Found {len(preferences)} preferences for user {user_id}")
+    blacklisted_prefs = [p for p in preferences if p.blacklisted]
+    print(f"Of which {len(blacklisted_prefs)} are blacklisted")
+
+    for pref in blacklisted_prefs:
+        category_name = pref.category.name if pref.category else "Unknown"
+        print(
+            f"Blacklisted preference: id={pref.id}, category={category_name}, value={pref.blacklisted}"
+        )
+
+    # Return the preferences with their associated categories
     return preferences
 
 
@@ -940,3 +996,129 @@ async def remove_blacklisted_article(
     db.commit()
 
     return None
+
+
+@app.post(
+    "/articles/{article_id}/read",
+    response_model=schemas.UserPreference,
+    tags=["Articles"],
+)
+async def track_article_read(
+    article_id: int,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """
+    Track when a user reads an article and increase their preference score
+    for the article's category.
+
+    Args:
+        article_id: ID of the article being read
+        current_user: Current authenticated user (from token)
+        db: Database session
+
+    Returns:
+        UserPreference: The updated user preference for the category
+
+    Raises:
+        HTTPException: If article not found
+    """
+    # Find the article
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    # Find the user preference for this category
+    preference = (
+        db.query(models.UserPreference)
+        .filter(
+            models.UserPreference.user_id == current_user.id,
+            models.UserPreference.category_id == article.category_id,
+        )
+        .first()
+    )
+
+    # Increment the score (preference should exist due to our event listener)
+    if preference:
+        preference.score += 1
+        db.commit()
+        db.refresh(preference)
+    else:
+        # This is an unexpected case, but we'll handle it gracefully
+        preference = models.UserPreference(
+            user_id=current_user.id,
+            category_id=article.category_id,
+            score=1,
+            blacklisted=False,
+        )
+        db.add(preference)
+        db.commit()
+        db.refresh(preference)
+
+    return preference
+
+
+@app.put(
+    "/users/me/preferences/{category_id}",
+    response_model=schemas.UserPreference,
+    tags=["Users"],
+)
+async def update_user_preference(
+    category_id: int,
+    preference: schemas.UserPreferenceUpdate,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """
+    Update a user's preference for a specific category.
+
+    Args:
+        category_id: ID of the category to update preferences for
+        preference: Updated preference data (score and/or blacklisted status)
+        current_user: Current authenticated user (from token)
+        db: Database session
+
+    Returns:
+        UserPreference: The updated user preference
+
+    Raises:
+        HTTPException: If category not found or preference not found
+    """
+    # Check if category exists
+    category = (
+        db.query(models.Category).filter(models.Category.id == category_id).first()
+    )
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    # Find the user preference for this category
+    user_preference = (
+        db.query(models.UserPreference)
+        .filter(
+            models.UserPreference.user_id == current_user.id,
+            models.UserPreference.category_id == category_id,
+        )
+        .first()
+    )
+
+    if not user_preference:
+        # Create a new preference if one doesn't exist
+        user_preference = models.UserPreference(
+            user_id=current_user.id,
+            category_id=category_id,
+            score=0,
+            blacklisted=False,
+        )
+        db.add(user_preference)
+
+    # Update preference fields if provided
+    if preference.score is not None:
+        user_preference.score = preference.score
+
+    if preference.blacklisted is not None:
+        user_preference.blacklisted = preference.blacklisted
+
+    db.commit()
+    db.refresh(user_preference)
+
+    return user_preference

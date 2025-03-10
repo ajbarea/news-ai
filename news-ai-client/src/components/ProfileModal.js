@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import SettingsModal from './SettingsModal';
 import SourceService from '../services/sourceService';
+import UserPreferenceService from '../services/userPreferenceService';
 
 function ProfileModal({ isOpen, toggle }) {
     const { currentUser, updateProfile } = useAuth();
@@ -39,6 +40,11 @@ function ProfileModal({ isOpen, toggle }) {
     const [unblockModal, setUnblockModal] = useState(false);
     const [selectedSource, setSelectedSource] = useState(null);
     const [unblockLoading, setUnblockLoading] = useState(false);
+    const [blacklistedCategories, setBlacklistedCategories] = useState([]);
+    const [loadingCategories, setLoadingCategories] = useState(false);
+    const [unblockCategoryModal, setUnblockCategoryModal] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [unblockCategoryLoading, setUnblockCategoryLoading] = useState(false);
 
     useEffect(() => {
         if (currentUser) {
@@ -50,9 +56,10 @@ function ProfileModal({ isOpen, toggle }) {
             setFormData(userData);
             setOriginalData(userData);
 
-            // Fetch blacklisted sources when modal opens and user is authenticated
+            // Fetch blacklisted sources and categories when modal opens and user is authenticated
             if (isOpen) {
                 fetchBlacklistedSources();
+                fetchBlacklistedCategories();
             }
         }
     }, [currentUser, isOpen]);
@@ -66,6 +73,82 @@ function ProfileModal({ isOpen, toggle }) {
             console.error('Error fetching blacklisted sources:', error);
         } finally {
             setLoadingSources(false);
+        }
+    };
+
+    const fetchBlacklistedCategories = async () => {
+        try {
+            setLoadingCategories(true);
+            setMessage(null); // Clear any previous messages
+
+            const preferences = await UserPreferenceService.getUserPreferences();
+            console.log("All user preferences:", preferences);
+
+            if (!Array.isArray(preferences)) {
+                console.error("API did not return an array of preferences");
+                setBlacklistedCategories([]);
+                setMessage({
+                    type: 'warning',
+                    text: 'Could not load category preferences in the expected format'
+                });
+                return;
+            }
+
+            // Filter only blacklisted preferences that have valid category data
+            const blacklisted = preferences.filter(pref => {
+                const isBlacklisted = Boolean(pref.blacklisted);
+                const hasValidCategory = Boolean(pref.category?.name);
+
+                if (isBlacklisted && !hasValidCategory) {
+                    console.warn(`Found blacklisted preference without valid category:`, pref);
+                }
+
+                return isBlacklisted && hasValidCategory;
+            });
+
+            console.log("Filtered blacklisted categories:", blacklisted);
+            setBlacklistedCategories(blacklisted);
+        } catch (error) {
+            console.error('Error fetching blacklisted categories:', error);
+
+            // Extract and log detailed error information
+            if (error.response) {
+                console.error('Error response:', error.response.data);
+                console.error('Error status:', error.response.status);
+                console.error('Error headers:', error.response.headers);
+
+                // Make sure we only set a string as the error message
+                let errorMessage = 'Failed to load blocked categories. Please try again.';
+
+                if (error.response.data?.detail) {
+                    // Ensure errorMessage is a string, not an object
+                    errorMessage = typeof error.response.data.detail === 'string'
+                        ? error.response.data.detail
+                        : JSON.stringify(error.response.data.detail);
+                }
+
+                setMessage({
+                    type: 'danger',
+                    text: errorMessage
+                });
+            } else if (error.request) {
+                // Request was made but no response received
+                console.error('Error request:', error.request);
+                setMessage({
+                    type: 'danger',
+                    text: 'No response received when loading categories. Please check your connection.'
+                });
+            } else {
+                // Error setting up the request
+                console.error('Error message:', error.message);
+                // Ensure error.message is converted to string
+                setMessage({
+                    type: 'danger',
+                    text: `Error: ${error.message ? String(error.message) : 'Failed to load blocked categories'}`
+                });
+            }
+        } finally {
+            setLoadingCategories(false);
         }
     };
 
@@ -261,6 +344,105 @@ function ProfileModal({ isOpen, toggle }) {
         );
     };
 
+    // Handler for when a user clicks on a blacklisted category badge
+    const handleUnblockCategory = (category) => {
+        setSelectedCategory(category);
+        setUnblockCategoryModal(true);
+    };
+
+    // Unblock the selected category
+    const confirmUnblockCategory = async () => {
+        if (!selectedCategory) return;
+
+        try {
+            setUnblockCategoryLoading(true);
+
+            const categoryName = selectedCategory.category?.name || "category";
+
+            await UserPreferenceService.updateCategoryPreference(
+                selectedCategory.category_id,
+                { blacklisted: false }
+            );
+
+            setUnblockCategoryModal(false);
+            setSelectedCategory(null);
+
+            await fetchBlacklistedCategories();
+
+            setMessage({
+                type: 'success',
+                text: `Successfully unblocked ${categoryName}`
+            });
+
+            setTimeout(() => setMessage(null), 3000);
+
+        } catch (error) {
+            console.error('Error unblocking category:', error);
+
+            const categoryName = selectedCategory.category?.name || "selected category";
+
+            setMessage({
+                type: 'danger',
+                text: `Failed to unblock ${categoryName}. Please try again.`
+            });
+
+            setUnblockCategoryModal(false);
+            setSelectedCategory(null);
+        } finally {
+            setUnblockCategoryLoading(false);
+        }
+    };
+
+    // Cancel the unblock category action
+    const cancelUnblockCategory = () => {
+        setUnblockCategoryModal(false);
+        setSelectedCategory(null);
+    };
+
+    // Render a list item for each blacklisted category
+    const renderBlacklistedCategories = () => {
+        if (loadingCategories) {
+            return <Spinner size="sm" color="primary" className="me-2" />;
+        }
+
+        if (!Array.isArray(blacklistedCategories) || blacklistedCategories.length === 0) {
+            return <p className="mb-0 text-muted">No categories blocked</p>;
+        }
+
+        return (
+            <div className="blacklisted-categories">
+                {blacklistedCategories.map(pref => {
+                    // Extra safety check to make sure we have valid data
+                    if (!pref || !pref.category || !pref.category.name) {
+                        return null;
+                    }
+
+                    // Make sure category name is a string
+                    const categoryName = typeof pref.category.name === 'string'
+                        ? pref.category.name
+                        : String(pref.category.name);
+
+                    return (
+                        <Badge
+                            key={pref.id || `pref-${pref.category_id}`}
+                            color="danger"
+                            className="me-1 mb-1"
+                            style={{
+                                padding: "5px 8px",
+                                cursor: "pointer",
+                                transition: "all 0.2s ease"
+                            }}
+                            onClick={() => handleUnblockCategory(pref)}
+                            title={`Click to unblock ${categoryName}`}
+                        >
+                            {categoryName} ×
+                        </Badge>
+                    );
+                })}
+            </div>
+        );
+    };
+
     return (
         <>
             <Modal isOpen={isOpen && !showSettings} toggle={toggle} size="lg">
@@ -294,6 +476,14 @@ function ProfileModal({ isOpen, toggle }) {
                                     </div>
                                 </Col>
                                 <Col md="6" className="mb-3">
+                                    <div className="border rounded p-3">
+                                        <h5>Blocked Categories</h5>
+                                        {renderBlacklistedCategories()}
+                                    </div>
+                                </Col>
+                            </Row>
+                            <Row>
+                                <Col md="12" className="mb-3">
                                     <div className="border rounded p-3">
                                         <h5>Reading Preferences</h5>
                                         <p className="mb-0">
@@ -405,6 +595,33 @@ function ProfileModal({ isOpen, toggle }) {
                         color="secondary"
                         onClick={cancelUnblock}
                         disabled={unblockLoading}
+                    >
+                        Cancel
+                    </Button>
+                </ModalFooter>
+            </Modal>
+
+            {/* Unblock Category Confirmation Modal */}
+            <Modal isOpen={unblockCategoryModal} toggle={cancelUnblockCategory} size="sm">
+                <ModalHeader toggle={cancelUnblockCategory}>
+                    Unblock Category
+                </ModalHeader>
+                <ModalBody>
+                    Are you sure you want to unblock <strong>{selectedCategory?.category?.name}</strong>?
+                    Articles from this category will appear in your feed again.
+                </ModalBody>
+                <ModalFooter>
+                    <Button
+                        color="primary"
+                        onClick={confirmUnblockCategory}
+                        disabled={unblockCategoryLoading}
+                    >
+                        {unblockCategoryLoading ? <Spinner size="sm" /> : 'Yes, Unblock'}
+                    </Button>
+                    <Button
+                        color="secondary"
+                        onClick={cancelUnblockCategory}
+                        disabled={unblockCategoryLoading}
                     >
                         Cancel
                     </Button>

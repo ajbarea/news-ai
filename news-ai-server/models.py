@@ -32,7 +32,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(255), unique=True, nullable=False)
-    email = Column(String(255), unique=True)
+    email = Column(String(255))
     password_hash = Column(Text, nullable=False)  # Stores hashed password only
     name = Column(String(255), nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now())  # Auto-set on creation
@@ -41,9 +41,15 @@ class User(Base):
     )  # Auto-updated
 
     # Relationships
-    preferences = relationship("UserPreference", back_populates="user")
-    blacklisted_sources = relationship("UserSourceBlacklist", back_populates="user")
-    blacklisted_articles = relationship("UserArticleBlacklist", back_populates="user")
+    preferences = relationship(
+        "UserPreference", back_populates="user", cascade="all, delete-orphan"
+    )
+    blacklisted_sources = relationship(
+        "UserSourceBlacklist", back_populates="user", cascade="all, delete-orphan"
+    )
+    blacklisted_articles = relationship(
+        "UserArticleBlacklist", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Category(Base):
@@ -108,9 +114,7 @@ class UserPreference(Base):
         Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False
     )
     score = Column(Integer, default=0)  # User's interest score for this category
-    blacklisted = Column(
-        Boolean, default=False
-    )  # Whether user wants to exclude this category
+    blacklisted = Column(Boolean, default=False)
 
     # Relationships
     user = relationship("User", back_populates="preferences")
@@ -225,3 +229,26 @@ def decrement_category_article_count(mapper, connection, target):
         .where(Category.id == target.category_id)
         .values(article_count=func.greatest(Category.article_count - 1, 0))
     )
+
+
+# Event listener to create user preferences for all categories when a user is created
+@event.listens_for(User, "after_insert")
+def create_user_preferences(mapper, connection, target):
+    """
+    Create default preferences for all categories when a new user is created.
+
+    Args:
+        mapper: The mapper which is the target of this event
+        connection: The Connection being used
+        target: The User instance being inserted
+    """
+    # Get all category IDs
+    categories = connection.execute(Category.__table__.select()).fetchall()
+
+    # Create a preference entry for each category with default score of 0
+    for category in categories:
+        connection.execute(
+            UserPreference.__table__.insert().values(
+                user_id=target.id, category_id=category.id, score=0, blacklisted=False
+            )
+        )

@@ -22,16 +22,14 @@ import { FaBookmark, FaArrowRight, FaEllipsisV, FaBan, FaThumbsDown, FaMicrophon
 import { useAuth } from '../context/AuthContext';
 import SourceService from '../services/sourceService';
 import ArticleService from '../services/articleService';
+import UserPreferenceService from '../services/userPreferenceService';
 
-const ArticleActions = ({ article, source, sourceId, category }) => {
+const ArticleActions = ({ article, source, sourceId, category, categoryId }) => {
   const { isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState({ show: false, message: '', type: 'success' });
 
   const handleAction = async (action, target, targetId) => {
-    console.log(`${action}: ${target} (ID: ${targetId})`);
-    console.log('Article object:', article);  // Debug: Log the full article object
-
     // Reset feedback
     setFeedback({ show: false, message: '', type: 'success' });
 
@@ -45,22 +43,29 @@ const ArticleActions = ({ article, source, sourceId, category }) => {
       return;
     }
 
-    // Validate targetId
-    if (!targetId) {
-      console.error(`Missing targetId for action: ${action}`);
-      setFeedback({
-        show: true,
-        message: 'Error: Could not identify item to perform action on',
-        type: 'danger'
-      });
-      return;
-    }
-
     try {
       setIsLoading(true);
 
-      if (action === 'Block source') {
-        console.log(`Attempting to block source with ID: ${targetId}`);
+      if (action === 'Show less about') {
+        // If we don't have a valid category ID but have a category name, try to use the name
+        if (!targetId && target) {
+          await UserPreferenceService.blacklistCategory(target);
+        } else {
+          // Use the ID if available
+          const categoryIdNum = parseInt(targetId, 10);
+          if (isNaN(categoryIdNum)) {
+            throw new Error(`Category ID is not a valid number: ${targetId}`);
+          }
+          await UserPreferenceService.blacklistCategory(categoryIdNum);
+        }
+
+        setFeedback({
+          show: true,
+          message: `You'll see less content about ${target}`,
+          type: 'success'
+        });
+      }
+      else if (action === 'Block source') {
         await SourceService.addToBlacklist(targetId);
 
         setFeedback({
@@ -70,12 +75,7 @@ const ArticleActions = ({ article, source, sourceId, category }) => {
         });
       }
       else if (action === 'Hide article') {
-        console.log(`Attempting to hide article with ID: ${targetId}`);
-
-        // Convert the ID to a number if needed
         const articleId = parseInt(targetId, 10) || targetId;
-        console.log(`Using article ID: ${articleId} (type: ${typeof articleId})`);
-
         await ArticleService.addToBlacklist(articleId);
 
         setFeedback({
@@ -130,17 +130,13 @@ const ArticleActions = ({ article, source, sourceId, category }) => {
           <FaEllipsisV />
         </DropdownToggle>
         <DropdownMenu end>
-          <DropdownItem onClick={() => handleAction('Show less about', category)}>
+          <DropdownItem onClick={() => handleAction('Show less about', category, categoryId)}>
             <FaThumbsDown className="me-2" /> Show less about: {category}
           </DropdownItem>
           <DropdownItem onClick={() => handleAction('Block source', source, sourceId)}>
             <FaBan className="me-2" /> Block source: {source}
           </DropdownItem>
-          <DropdownItem
-            onClick={() => {
-              console.log('Clicked Hide article with ID:', article.id);
-              handleAction('Hide article', article.title, article.id);
-            }}>
+          <DropdownItem onClick={() => handleAction('Hide article', article.title, article.id)}>
             <FaThumbsDown className="me-2" /> Hide article: {article.title.length > 30 ? `${article.title.substring(0, 30)}...` : article.title}
           </DropdownItem>
         </DropdownMenu>
@@ -210,7 +206,6 @@ const ArticleMetadata = ({ category, date, source, sourceLogo, subscriptionRequi
                   verticalAlign: 'middle'
                 }}
                 onError={(e) => {
-                  console.log('Failed to load logo:', sourceLogo);
                   e.target.style.display = 'none';
                 }}
               />
@@ -234,6 +229,7 @@ const ArticleMetadata = ({ category, date, source, sourceLogo, subscriptionRequi
 };
 
 function ArticleCard({ article }) {
+  const { isAuthenticated } = useAuth();
   const placeholderImage = `https://media.istockphoto.com/id/1369150014/vector/breaking-news-with-world-map-background-vector.jpg?s=612x612&w=0&k=20&c=9pR2-nDBhb7cOvvZU_VdgkMmPJXrBQ4rB1AkTXxRIKM=`;
 
   // Extract source information
@@ -241,11 +237,6 @@ function ArticleCard({ article }) {
   let sourceLogo = null;
   let subscriptionRequired = false;
   let sourceId = null;
-
-  // Add debugging for sourceLogo
-  if (article.source && article.source.logo_url) {
-    console.log('Source logo found:', article.source.logo_url);
-  }
 
   if (article.source) {
     if (typeof article.source === 'object') {
@@ -260,12 +251,38 @@ function ArticleCard({ article }) {
 
   // Extract category - check if it's an object or string
   let categoryName = "General";
+  let categoryId = null;
+
   if (article.category) {
-    categoryName = typeof article.category === 'object' ? article.category.name : article.category;
+    if (typeof article.category === 'object') {
+      categoryName = article.category.name || "General";
+      // Try to get the category ID from multiple possible properties
+      categoryId = article.category.id || article.category_id || null;
+    } else {
+      categoryName = article.category;
+      // If category is a string, try to get ID from article.category_id
+      categoryId = article.category_id || null;
+    }
+  } else if (article.category_id) {
+    // If no category object but we have category_id, use that
+    categoryId = article.category_id;
   }
 
+  const imageUrl = article.image_url || article.imageUrl || placeholderImage;
   const date = article.date || article.published_at || new Date().toLocaleDateString();
   const articleId = article.id || Math.random().toString(36).substring(2, 11);
+
+  const handleReadMore = async (e) => {
+    e.preventDefault();
+    if (isAuthenticated()) {
+      try {
+        await ArticleService.trackArticleRead(article.id);
+      } catch (error) {
+        console.error('Failed to track article read:', error);
+      }
+    }
+    window.open(article.url, '_blank');
+  };
 
   return (
     <Card className="h-100 shadow-sm position-relative">
@@ -275,12 +292,13 @@ function ArticleCard({ article }) {
           source={sourceName}
           sourceId={sourceId}
           category={categoryName}
+          categoryId={categoryId}
         />
       </div>
 
       <div className="p-1 pt-1">
         <CardImg
-          src={article.imageUrl || placeholderImage}
+          src={imageUrl}
           alt={article.title}
           top
           className="rounded"
@@ -343,10 +361,7 @@ function ArticleCard({ article }) {
           <Col className="text-end">
             <Button
               color="link"
-              tag="a"
-              href={article.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              onClick={handleReadMore}
               className="p-0 d-inline-flex align-items-center"
             >
               Read More <FaArrowRight className="ms-1" size="0.8em" />

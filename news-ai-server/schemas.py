@@ -175,6 +175,7 @@ class UserPreference(UserPreferenceBase):
 
     id: int
     user_id: int
+    category: Optional[Category] = None
 
     class Config:
         from_attributes = True

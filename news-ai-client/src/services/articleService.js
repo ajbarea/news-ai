@@ -36,6 +36,15 @@ const ArticleService = {
     removeFromBlacklist: async (articleId) => {
         await apiClient.delete(`/users/me/blacklisted-articles/${articleId}`);
         return true;
+    },
+
+    /**
+     * Track when a user reads an article to update preference score
+     * @param {number} articleId - The ID of the article being read
+     */
+    trackArticleRead: async (articleId) => {
+        const response = await apiClient.post(`/articles/${articleId}/read`);
+        return response.data;
     }
 };
 
