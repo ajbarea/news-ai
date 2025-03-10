@@ -23,7 +23,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/authService';
 
 const ArticleActions = ({ article, source, sourceId, category }) => {
-  const { currentUser, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState({ show: false, message: '', type: 'success' });
 
