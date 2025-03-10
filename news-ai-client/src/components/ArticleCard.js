@@ -20,7 +20,6 @@ import {
 } from 'reactstrap';
 import { FaBookmark, FaArrowRight, FaEllipsisV, FaBan, FaThumbsDown, FaMicrophone, FaSyncAlt } from "react-icons/fa";
 import { useAuth } from '../context/AuthContext';
-import { apiClient } from '../services/authService';
 import SourceService from '../services/sourceService';
 import ArticleService from '../services/articleService';
 
