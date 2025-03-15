@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Container, Row, Col, Card, CardBody, CardTitle, CardText, Input, Button, InputGroup, Spinner } from 'reactstrap';
 import { apiClient } from '../services/authService';
+import { useSearchParams } from 'react-router-dom';
+import ArticleService from '../services/articleService';
+import { useAuth } from '../context/AuthContext';
 
 function Categories() {
   const [categories, setCategories] = useState([]);
@@ -8,7 +11,7 @@ function Categories() {
   const [error, setError] = useState(null);
   const loadingRef = useRef(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [lastSearchQuery, setLastSearchQuery] = useState(''); // Added to store the last search query
+  const [lastSearchQuery, setLastSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState(null);
@@ -21,17 +24,19 @@ function Categories() {
   const [loadingArticles, setLoadingArticles] = useState(false);
   const [categoryArticlesError, setCategoryArticlesError] = useState(null);
 
+  const [searchParams] = useSearchParams();
+
+  const { isAuthenticated } = useAuth();
+
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        console.log('Fetching categories...');
         setLoading(true);
         loadingRef.current = true;
         // Add a timeout to the request to prevent it from hanging
         const response = await apiClient.get('/categories', {
           timeout: 10000 // 10 seconds timeout
         });
-        console.log('Categories data received:', response.data);
 
         if (Array.isArray(response.data)) {
           setCategories(response.data);
@@ -73,6 +78,29 @@ function Categories() {
     return () => clearTimeout(timeout);
   }, []);
 
+  // Handle category selection from URL query parameters
+  useEffect(() => {
+    const categoryIdParam = searchParams.get('category');
+
+    if (!categoryIdParam) {
+      // If no category parameter is present, reset to show all categories
+      setSelectedCategory(null);
+      setCategoryArticles([]);
+      return;
+    }
+
+    // Only process if we have categories loaded and a category ID parameter
+    if (categories.length > 0) {
+      const categoryId = parseInt(categoryIdParam, 10);
+      const category = categories.find(cat => cat.id === categoryId);
+
+      if (category) {
+        setSelectedCategory(category);
+        fetchArticlesByCategory(category.id);
+      }
+    }
+  }, [categories, searchParams]); // Remove selectedCategory from dependencies
+
   // New function to fetch articles by category
   const fetchArticlesByCategory = async (categoryId) => {
     try {
@@ -80,13 +108,11 @@ function Categories() {
       setCategoryArticlesError(null);
       setCategoryArticles([]);
 
-      console.log(`Fetching articles for category ID: ${categoryId}`);
       const response = await apiClient.get('/articles', {
         params: { category_id: categoryId },
         timeout: 10000
       });
 
-      console.log('Category articles received:', response.data);
       setCategoryArticles(response.data);
       setLoadingArticles(false);
     } catch (err) {
@@ -157,7 +183,6 @@ function Categories() {
         timeout: 10000
       });
 
-      console.log('Search results:', response.data);
       setSearchResults(response.data);
       setIsSearching(false);
       setSearchQuery('');
@@ -201,6 +226,19 @@ function Categories() {
     }
   };
 
+  // Handle article read tracking
+  const handleReadMore = async (article) => {
+    if (isAuthenticated()) {
+      try {
+        await ArticleService.trackArticleRead(article.id);
+      } catch (error) {
+        console.error('Failed to track article read:', error);
+      }
+    }
+    // Open article URL in a new tab
+    window.open(article.url, '_blank');
+  };
+
   // Render article cards (used for both search results and category articles)
   const renderArticleCards = (articles) => {
     return articles.map((article) => (
@@ -230,10 +268,7 @@ function Categories() {
                 <CardText className="text-truncate">{article.summary}</CardText>
                 <Button
                   color="primary"
-                  tag="a"
-                  href={article.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  onClick={() => handleReadMore(article)}
                   size="sm"
                 >
                   Read More

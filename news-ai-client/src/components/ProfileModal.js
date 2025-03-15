@@ -15,7 +15,8 @@ import {
     Badge,
     Spinner,
     Card,
-    CardBody
+    CardBody,
+    CardTitle
 } from 'reactstrap';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -24,7 +25,7 @@ import SourceService from '../services/sourceService';
 import UserPreferenceService from '../services/userPreferenceService';
 import FavoriteArticleService from '../services/favoriteArticleService';
 import ArticleService from '../services/articleService';
-import { FaBookmark, FaTrash, FaBan } from 'react-icons/fa';
+import { FaBookmark, FaTrash, FaBan, FaNewspaper, FaShieldAlt } from 'react-icons/fa';
 
 function ProfileModal({ isOpen, toggle }) {
     const { currentUser, updateProfile } = useAuth();
@@ -95,7 +96,6 @@ function ProfileModal({ isOpen, toggle }) {
             setMessage(null); // Clear any previous messages
 
             const preferences = await UserPreferenceService.getUserPreferences();
-            console.log("All user preferences:", preferences);
 
             if (!Array.isArray(preferences)) {
                 console.error("API did not return an array of preferences");
@@ -119,7 +119,6 @@ function ProfileModal({ isOpen, toggle }) {
                 return isBlacklisted && hasValidCategory;
             });
 
-            console.log("Filtered blacklisted categories:", blacklisted);
             setBlacklistedCategories(blacklisted);
         } catch (error) {
             console.error('Error fetching blacklisted categories:', error);
@@ -606,36 +605,38 @@ function ProfileModal({ isOpen, toggle }) {
 
         return (
             <div className="blacklisted-articles">
-                {blacklistedArticles.map(article => (
-                    <Card key={article.id} className="mb-2" style={{ borderLeft: '3px solid #dc3545' }}>
-                        <CardBody className="p-2">
-                            <div className="d-flex justify-content-between align-items-start">
-                                <div className="blacklisted-article-title"
-                                    onClick={() => handleArticleClick(article.url)}
-                                    style={{ cursor: 'pointer', flex: 1 }}>
-                                    <span className="fw-bold">{article.title}</span>
-                                    <div className="d-flex mt-1">
-                                        <Badge color="primary" pill className="me-1">
-                                            {article.category ? article.category.name : 'Uncategorized'}
-                                        </Badge>
-                                        <Badge color="secondary" pill>
-                                            {article.source ? article.source.name : 'Unknown source'}
-                                        </Badge>
+                {blacklistedArticles.map(article => {
+                    return (
+                        <Card key={article.id} className="mb-2" style={{ borderLeft: '3px solid #dc3545' }}>
+                            <CardBody className="p-2">
+                                <div className="d-flex justify-content-between align-items-start">
+                                    <div className="blacklisted-article-title"
+                                        onClick={() => handleArticleClick(article.url)}
+                                        style={{ cursor: 'pointer', flex: 1 }}>
+                                        <span className="fw-bold">{article.title}</span>
+                                        <div className="d-flex mt-1">
+                                            <Badge color="primary" pill className="me-1">
+                                                {article.category ? article.category.name : 'Uncategorized'}
+                                            </Badge>
+                                            <Badge color="secondary" pill>
+                                                {article.source ? article.source.name : 'Unknown source'}
+                                            </Badge>
+                                        </div>
                                     </div>
+                                    <Button
+                                        color="link"
+                                        className="p-0 ms-2 text-primary"
+                                        onClick={() => handleRemoveBlacklistedArticle(article.id)}
+                                        disabled={removingBlacklistedArticleId === article.id}>
+                                        {removingBlacklistedArticleId === article.id ?
+                                            <Spinner size="sm" /> :
+                                            <FaTrash size="0.8em" />}
+                                    </Button>
                                 </div>
-                                <Button
-                                    color="link"
-                                    className="p-0 ms-2 text-primary"
-                                    onClick={() => handleRemoveBlacklistedArticle(article.id)}
-                                    disabled={removingBlacklistedArticleId === article.id}>
-                                    {removingBlacklistedArticleId === article.id ?
-                                        <Spinner size="sm" /> :
-                                        <FaTrash size="0.8em" />}
-                                </Button>
-                            </div>
-                        </CardBody>
-                    </Card>
-                ))}
+                            </CardBody>
+                        </Card>
+                    );
+                })}
             </div>
         );
     };
@@ -654,47 +655,61 @@ function ProfileModal({ isOpen, toggle }) {
                     )}
 
                     {!isEditing ? (
-                        <div className="text-center mb-4">
-                            <div className="mb-3">
-                                <div className="d-inline-block bg-light rounded-circle p-3 mb-2" style={{ width: '120px', height: '120px' }}>
-                                    <span className="display-4">
-                                        {currentUser?.username?.charAt(0).toUpperCase() || 'U'}
-                                    </span>
+                        <div className="mb-4">
+                            <div className="text-center mb-4">
+                                <div className="mb-3">
+                                    <div className="d-inline-block bg-light rounded-circle p-3 mb-2" style={{ width: '120px', height: '120px' }}>
+                                        <span className="display-4">
+                                            {currentUser?.username?.charAt(0).toUpperCase() || 'U'}
+                                        </span>
+                                    </div>
                                 </div>
+                                <h3>{currentUser?.name || currentUser?.username}</h3>
+                                <p className="text-muted">{currentUser?.email}</p>
                             </div>
-                            <h3>{currentUser?.name || currentUser?.username}</h3>
-                            <p className="text-muted">{currentUser?.email}</p>
 
                             <Row className="mt-4">
                                 <Col md="6" className="mb-3">
-                                    <div className="border rounded p-3">
-                                        <h5>Blocked Sources</h5>
-                                        {renderBlacklistedSources()}
-                                    </div>
+                                    <Card className="h-100">
+                                        <CardBody>
+                                            <CardTitle tag="h5" className="d-flex align-items-center mb-3">
+                                                <FaShieldAlt className="me-2 text-danger" /> Blocked Sources
+                                            </CardTitle>
+                                            {renderBlacklistedSources()}
+                                        </CardBody>
+                                    </Card>
                                 </Col>
                                 <Col md="6" className="mb-3">
-                                    <div className="border rounded p-3">
-                                        <h5>Blocked Categories</h5>
-                                        {renderBlacklistedCategories()}
-                                    </div>
+                                    <Card className="h-100">
+                                        <CardBody>
+                                            <CardTitle tag="h5" className="d-flex align-items-center mb-3">
+                                                <FaNewspaper className="me-2 text-danger" /> Blocked Categories
+                                            </CardTitle>
+                                            {renderBlacklistedCategories()}
+                                        </CardBody>
+                                    </Card>
                                 </Col>
                             </Row>
                             <Row>
                                 <Col md="6" className="mb-3">
-                                    <div className="border rounded p-3">
-                                        <h5 className="d-flex align-items-center mb-3">
-                                            <FaBookmark className="me-2 text-primary" /> Favorite Articles
-                                        </h5>
-                                        {renderFavoriteArticles()}
-                                    </div>
+                                    <Card className="h-100">
+                                        <CardBody>
+                                            <CardTitle tag="h5" className="d-flex align-items-center mb-3">
+                                                <FaBookmark className="me-2 text-primary" /> Favorite Articles
+                                            </CardTitle>
+                                            {renderFavoriteArticles()}
+                                        </CardBody>
+                                    </Card>
                                 </Col>
                                 <Col md="6" className="mb-3">
-                                    <div className="border rounded p-3">
-                                        <h5 className="d-flex align-items-center mb-3">
-                                            <FaBan className="me-2 text-danger" /> Hidden Articles
-                                        </h5>
-                                        {renderBlacklistedArticles()}
-                                    </div>
+                                    <Card className="h-100">
+                                        <CardBody>
+                                            <CardTitle tag="h5" className="d-flex align-items-center mb-3">
+                                                <FaBan className="me-2 text-danger" /> Hidden Articles
+                                            </CardTitle>
+                                            {renderBlacklistedArticles()}
+                                        </CardBody>
+                                    </Card>
                                 </Col>
                             </Row>
                         </div>

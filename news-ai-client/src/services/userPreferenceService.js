@@ -68,7 +68,6 @@ const UserPreferenceService = {
                 }
 
                 categoryId = category.id;
-                console.log(`Resolved category name "${categoryIdOrName}" to ID: ${categoryId}`);
             } catch (error) {
                 console.error(`Failed to find category ID for "${categoryIdOrName}":`, error);
                 throw new Error(`Couldn't blacklist category: ${categoryIdOrName}. ${error.message}`);
@@ -91,6 +90,20 @@ const UserPreferenceService = {
      */
     removeFromBlacklist: async (categoryId) => {
         return await UserPreferenceService.updateCategoryPreference(categoryId, { blacklisted: false });
+    },
+
+    /**
+     * Get all blacklisted categories for the current user
+     * @returns {Promise<Array>} - Array of blacklisted categories
+     */
+    getBlacklistedCategories: async () => {
+        try {
+            const preferences = await UserPreferenceService.getUserPreferences();
+            return preferences.filter(pref => pref.blacklisted === true);
+        } catch (error) {
+            console.error('Failed to fetch blacklisted categories:', error);
+            throw error;
+        }
     }
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Card,
   CardBody,
@@ -29,6 +29,35 @@ const ArticleActions = ({ article, source, sourceId, category, categoryId }) => 
   const { isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState({ show: false, message: '', type: 'success' });
+  const feedbackTimeoutRef = useRef(null);
+
+  // Clear feedback timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const showFeedbackWithTimeout = (message, type) => {
+    // Clear any existing timeout
+    if (feedbackTimeoutRef.current) {
+      clearTimeout(feedbackTimeoutRef.current);
+    }
+
+    // Show the feedback
+    setFeedback({
+      show: true,
+      message,
+      type
+    });
+
+    // Set timeout to hide the feedback after 4 seconds
+    feedbackTimeoutRef.current = setTimeout(() => {
+      setFeedback(prev => ({ ...prev, show: false }));
+    }, 4000);
+  };
 
   const handleAction = async (action, target, targetId) => {
     // Reset feedback
@@ -36,11 +65,7 @@ const ArticleActions = ({ article, source, sourceId, category, categoryId }) => 
 
     // Check authentication
     if (!isAuthenticated()) {
-      setFeedback({
-        show: true,
-        message: 'Please log in to perform this action',
-        type: 'warning'
-      });
+      showFeedbackWithTimeout('Please log in to perform this action', 'warning');
       return;
     }
 
@@ -60,30 +85,18 @@ const ArticleActions = ({ article, source, sourceId, category, categoryId }) => 
           await UserPreferenceService.blacklistCategory(categoryIdNum);
         }
 
-        setFeedback({
-          show: true,
-          message: `You'll see less content about ${target}`,
-          type: 'success'
-        });
+        showFeedbackWithTimeout(`You'll see less content about ${target}`, 'success');
       }
       else if (action === 'Block source') {
         await SourceService.addToBlacklist(targetId);
 
-        setFeedback({
-          show: true,
-          message: `${target} has been added to your blacklist`,
-          type: 'success'
-        });
+        showFeedbackWithTimeout(`${target} has been added to your blacklist`, 'success');
       }
       else if (action === 'Hide article') {
         const articleId = parseInt(targetId, 10) || targetId;
         await ArticleService.addToBlacklist(articleId);
 
-        setFeedback({
-          show: true,
-          message: `Article has been hidden`,
-          type: 'success'
-        });
+        showFeedbackWithTimeout(`Article has been hidden`, 'success');
       }
 
       // Optionally refresh the page or update article list
@@ -101,11 +114,7 @@ const ArticleActions = ({ article, source, sourceId, category, categoryId }) => 
         errorMessage = error.response.data.detail;
       }
 
-      setFeedback({
-        show: true,
-        message: errorMessage,
-        type: 'danger'
-      });
+      showFeedbackWithTimeout(errorMessage, 'danger');
     } finally {
       setIsLoading(false);
     }
@@ -234,8 +243,37 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
   const [isLoading, setIsLoading] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
   const [feedback, setFeedback] = useState({ show: false, message: '', type: 'success' });
+  const feedbackTimeoutRef = useRef(null);
 
   const placeholderImage = `https://media.istockphoto.com/id/1369150014/vector/breaking-news-with-world-map-background-vector.jpg?s=612x612&w=0&k=20&c=9pR2-nDBhb7cOvvZU_VdgkMmPJXrBQ4rB1AkTXxRIKM=`;
+
+  // Clear feedback timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const showFeedbackWithTimeout = (message, type) => {
+    // Clear any existing timeout
+    if (feedbackTimeoutRef.current) {
+      clearTimeout(feedbackTimeoutRef.current);
+    }
+
+    // Show the feedback
+    setFeedback({
+      show: true,
+      message,
+      type
+    });
+
+    // Set timeout to hide the feedback after 5 seconds
+    feedbackTimeoutRef.current = setTimeout(() => {
+      setFeedback(prev => ({ ...prev, show: false }));
+    }, 5000);
+  };
 
   // Determine if article is in favorites
   useEffect(() => {
@@ -300,11 +338,7 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
     e.preventDefault();
 
     if (!isAuthenticated()) {
-      setFeedback({
-        show: true,
-        message: 'Please log in to save articles to favorites',
-        type: 'warning'
-      });
+      showFeedbackWithTimeout('Please log in to save articles to favorites', 'warning');
       return;
     }
 
@@ -313,18 +347,10 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
 
       if (isFavorited) {
         await FavoriteArticleService.removeFromFavorites(article.id);
-        setFeedback({
-          show: true,
-          message: 'Article removed from favorites',
-          type: 'success'
-        });
+        showFeedbackWithTimeout('Article removed from favorites', 'success');
       } else {
         await FavoriteArticleService.addToFavorites(article.id);
-        setFeedback({
-          show: true,
-          message: 'Article added to favorites',
-          type: 'success'
-        });
+        showFeedbackWithTimeout('Article added to favorites', 'success');
       }
 
       setIsFavorited(!isFavorited);
@@ -344,11 +370,7 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
         errorMessage = error.response.data.detail;
       }
 
-      setFeedback({
-        show: true,
-        message: errorMessage,
-        type: 'danger'
-      });
+      showFeedbackWithTimeout(errorMessage, 'danger');
     } finally {
       setIsLoading(false);
     }

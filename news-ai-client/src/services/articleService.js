@@ -52,6 +52,8 @@ const ArticleService = {
      */
     trackArticleRead: async (articleId) => {
         const response = await apiClient.post(`/articles/${articleId}/read`);
+        // Dispatch custom event to notify components that user preferences have changed
+        window.dispatchEvent(new CustomEvent('userPreferencesChanged'));
         return response.data;
     }
 };

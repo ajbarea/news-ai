@@ -49,6 +49,7 @@ function Login() {
                     id="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    autoComplete="username"
                     required
                   />
                 </FormGroup>
@@ -60,13 +61,14 @@ function Login() {
                     id="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
                     required
                   />
                 </FormGroup>
 
                 <Button
                   color="primary"
-                  type="submit"Name="w-100"
+                  type="submit" name="w-100"
                   disabled={loading}
                   className="btn-block"
                 >

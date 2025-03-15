@@ -866,7 +866,7 @@ async def remove_blacklisted_source(
 
 @app.get(
     "/users/me/blacklisted-articles",
-    response_model=List[schemas.Article],
+    response_model=List[schemas.ArticleDetail],
     tags=["Users"],
 )
 async def get_blacklisted_articles(
@@ -881,7 +881,7 @@ async def get_blacklisted_articles(
         db: Database session
 
     Returns:
-        List[Article]: List of blacklisted articles
+        List[ArticleDetail]: List of blacklisted articles with category and source details
     """
     blacklisted_article_ids = [
         row[0]
@@ -890,11 +890,14 @@ async def get_blacklisted_articles(
         .all()
     ]
 
+    # Use joinedload to eagerly load category and source relationships
     articles = (
         db.query(models.Article)
+        .options(joinedload(models.Article.category), joinedload(models.Article.source))
         .filter(models.Article.id.in_(blacklisted_article_ids))
         .all()
     )
+
     return articles
 
 

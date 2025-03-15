@@ -16,6 +16,7 @@ function HomePage() {
     const [favoriteArticles, setFavoriteArticles] = useState([]);
     const [loadingFavorites, setLoadingFavorites] = useState(false);
     const { isAuthenticated } = useAuth();
+    const [sortOrder, setSortOrder] = useState('newest');
 
     // Fetch articles from API
     useEffect(() => {
@@ -91,25 +92,37 @@ function HomePage() {
         url: article.url
     });
 
-    // Filter articles based on selected category
+    // Filter articles based on selected category, then sort by publication date
     const filteredArticles = activeCategory === 'All'
         ? articles.map(formatArticle)
         : articles
             .filter(article => article.category.name === activeCategory)
             .map(formatArticle);
 
+    // Sort the filtered articles by publication date
+    const sortedArticles = [...filteredArticles].sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+
     // Get only the articles that should be visible
-    const currentArticles = filteredArticles.slice(0, visibleArticles);
+    const currentArticles = sortedArticles.slice(0, visibleArticles);
 
     // Load more articles function
     const loadMoreArticles = () => {
         setVisibleArticles(prev => prev + articlesPerPage);
     };
 
-    // Reset visible articles when changing category
+    // Toggle sort order function
+    const toggleSortOrder = () => {
+        setSortOrder(prevOrder => prevOrder === 'newest' ? 'oldest' : 'newest');
+    };
+
+    // Reset visible articles when changing category or sort order
     useEffect(() => {
         setVisibleArticles(9);
-    }, [activeCategory]);
+    }, [activeCategory, sortOrder]);
 
     return (
         <Container className="mt-5 mb-4">
@@ -125,7 +138,7 @@ function HomePage() {
 
             {/* Category Filter */}
             <Row className="mb-4">
-                <Col>
+                <Col md="8">
                     <ButtonGroup className="flex-wrap">
                         {categories.map(category => (
                             <Button
@@ -139,6 +152,17 @@ function HomePage() {
                             </Button>
                         ))}
                     </ButtonGroup>
+                </Col>
+                <Col md="4" className="text-md-end mt-3 mt-md-0">
+                    <Button
+                        color="info"
+                        outline
+                        onClick={toggleSortOrder}
+                        className="d-flex align-items-center ms-auto"
+                    >
+                        <i className={`bi bi-sort-${sortOrder === 'newest' ? 'down' : 'up'} me-2`}></i>
+                        Sort by: {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+                    </Button>
                 </Col>
             </Row>
 
