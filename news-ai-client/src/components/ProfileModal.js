@@ -641,6 +641,20 @@ function ProfileModal({ isOpen, toggle }) {
         );
     };
 
+    // Function to get a profile picture based on user ID
+    const getProfilePicture = () => {
+        if (!currentUser || !currentUser.id) {
+            // Default image if no user ID available
+            return 'https://randomuser.me/api/portraits/lego/1.jpg';
+        }
+
+        // Use the user's ID as a seed for a consistent picture
+        // Modulo 99 to keep within the available range (0-99)
+        const pictureId = currentUser.id % 99;
+
+        return `https://randomuser.me/api/portraits/men/${pictureId}.jpg`;
+    };
+
     return (
         <>
             <Modal isOpen={isOpen && !showSettings} toggle={toggle} size="lg">
@@ -658,11 +672,17 @@ function ProfileModal({ isOpen, toggle }) {
                         <div className="mb-4">
                             <div className="text-center mb-4">
                                 <div className="mb-3">
-                                    <div className="d-inline-block bg-light rounded-circle p-3 mb-2" style={{ width: '120px', height: '120px' }}>
-                                        <span className="display-4">
-                                            {currentUser?.username?.charAt(0).toUpperCase() || 'U'}
-                                        </span>
-                                    </div>
+                                    {/* Replace letter placeholder with actual profile picture */}
+                                    <img
+                                        src={getProfilePicture()}
+                                        alt={`${currentUser?.username || 'User'}'s profile`}
+                                        className="rounded-circle mb-2"
+                                        style={{ width: '120px', height: '120px', objectFit: 'cover', border: '3px solid #f8f9fa' }}
+                                        onError={(e) => {
+                                            // Fallback in case image fails to load
+                                            e.target.src = 'https://randomuser.me/api/portraits/lego/1.jpg';
+                                        }}
+                                    />
                                 </div>
                                 <h3>{currentUser?.name || currentUser?.username}</h3>
                                 <p className="text-muted">{currentUser?.email}</p>

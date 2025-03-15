@@ -1,30 +1,49 @@
 """
-Database seed data.
-Contains the initial data used to populate the database.
+Sample data provider for database seeding.
+
+Contains predefined data sets and factories for creating consistent
+test and demonstration data. These samples provide a realistic
+starting point for development and testing environments.
 """
 
 from datetime import datetime
 from .. import models
 
 
-# Function from seed.py needed for users
 def get_password_hash(password):
-    """Hash a password using bcrypt."""
+    """
+    Hash a password using bcrypt for secure storage.
+
+    This is defined here to avoid circular imports with the seed module
+    while maintaining consistent password hashing across the application.
+
+    Args:
+        password: Plain text password to hash
+
+    Returns:
+        str: Bcrypt hashed password
+    """
     from passlib.context import CryptContext
 
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     return pwd_context.hash(password)
 
 
+# Demo users for testing and development environments
+# For production, separate credentials should be used
 users = [
     models.User(
         username="ajbarea",
         email="ajb6289@rit.edu",
         name="AJ Barea",
-        password_hash=get_password_hash("pass"),
+        password_hash=get_password_hash(
+            "pass"
+        ),  # Demo password only, not for production
     ),
 ]
 
+# Standard content categories with visual styling information
+# for consistent presentation across UI components
 categories = [
     models.Category(name="Business", icon="💼", color="primary", article_count=0),
     models.Category(name="Technology", icon="💻", color="purple", article_count=0),
@@ -36,6 +55,8 @@ categories = [
     models.Category(name="Environment", icon="🌍", color="success", article_count=0),
 ]
 
+# News sources with their associated metadata
+# Logo URLs point to persistent CDN locations to ensure availability
 sources = [
     models.Source(
         name="ABC News",
@@ -102,14 +123,18 @@ sources = [
 
 def get_articles(db_categories, db_sources):
     """
-    Generate article objects with proper relationships.
+    Generate article objects with ORM relationships.
+
+    Creates sample articles with realistic content across various categories
+    and sources, with proper database relationships established. This provides
+    a comprehensive test dataset that exercises all application features.
 
     Args:
         db_categories (dict): Dictionary mapping category names to category objects
         db_sources (dict): Dictionary mapping source names to source objects
 
     Returns:
-        list: List of article objects
+        list: List of article objects ready for database insertion
     """
     return [
         models.Article(  # ABC News - Business

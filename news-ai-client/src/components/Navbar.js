@@ -66,7 +66,7 @@ const CategoryDropdown = ({ categories = [] }) => {
   return (
     <Dropdown nav isOpen={dropdownOpen} toggle={toggle}>
       <DropdownToggle nav caret innerRef={toggleRef}>
-        {categories.length > 0 ? 'Your Topics' : 'Categories'}
+        {categories.length > 0 ? 'Your Categories' : 'Categories'}
       </DropdownToggle>
       <DropdownMenu>
         {displayCategories.map(category => (

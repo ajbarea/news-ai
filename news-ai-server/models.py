@@ -1,8 +1,9 @@
 """
 Database models module.
-This file defines all SQLAlchemy ORM models representing database tables.
-It establishes the data structure for the News AI application, including users,
-articles, categories, sources, and their relationships.
+
+Defines the data schema and relationships using SQLAlchemy ORM.
+These models represent the core domain entities of the application
+and their relationships, forming the foundation of the data layer.
 """
 
 from sqlalchemy import (
@@ -18,14 +19,19 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from .database.database import Base
+from .utils.logging_config import get_logger
+
+# Set up logging
+logger = get_logger(__name__)
 
 
 class User(Base):
     """
-    User model representing application users.
+    User model representing application accounts.
 
-    This model stores user authentication information and serves as
-    the central entity for user-specific preferences and settings.
+    Central entity for authentication and personalization features,
+    linked to preferences, blacklists, and favorites through
+    one-to-many relationships with deletion cascades.
     """
 
     __tablename__ = "users"
@@ -33,14 +39,12 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(255), unique=True, nullable=False)
     email = Column(String(255))
-    password_hash = Column(Text, nullable=False)  # Stores hashed password only
+    password_hash = Column(Text, nullable=False)  # Never store plain passwords
     name = Column(String(255), nullable=True)
-    created_at = Column(TIMESTAMP, server_default=func.now())  # Auto-set on creation
-    updated_at = Column(
-        TIMESTAMP, server_default=func.now(), onupdate=func.now()
-    )  # Auto-updated
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
 
-    # Relationships
+    # Relationships with cascading deletes to maintain referential integrity
     preferences = relationship(
         "UserPreference", back_populates="user", cascade="all, delete-orphan"
     )
@@ -57,19 +61,20 @@ class User(Base):
 
 class Category(Base):
     """
-    Category model representing article categories/topics.
+    Category model for content classification.
 
-    Categories help organize articles and allow users to set preferences
-    for the types of news they're interested in.
+    Provides a taxonomy for organizing articles and enabling
+    user preference tracking. The article_count field is
+    automatically updated by event listeners when articles change.
     """
 
     __tablename__ = "categories"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), unique=True, nullable=False)
-    icon = Column(String(10), nullable=True)  # Emoji icon for the category
-    color = Column(String(50), nullable=True)  # Color theme for the category UI
-    article_count = Column(Integer, default=0)  # Count of articles in this category
+    icon = Column(String(10), nullable=True)  # Emoji or icon identifier
+    color = Column(String(50), nullable=True)  # UI theme color
+    article_count = Column(Integer, default=0)  # Denormalized count for performance
 
     # Relationships
     articles = relationship("Article", back_populates="category")
@@ -225,17 +230,23 @@ class UserFavoriteArticle(Base):
     article = relationship("Article", back_populates="favorited_by")
 
 
-# Event listeners to update article counts in categories when articles are added/deleted
+# Event listeners to maintain data integrity and denormalized fields
+
+
 @event.listens_for(Article, "after_insert")
 def increment_category_article_count(mapper, connection, target):
     """
-    Increment the article_count of the category when a new article is added.
+    Maintain accurate article counts in categories.
+
+    Updates the denormalized article_count when articles are created,
+    avoiding expensive COUNT queries during read operations.
 
     Args:
         mapper: The mapper which is the target of this event
         connection: The Connection being used
         target: The instance being inserted
     """
+    logger.debug(f"Incrementing article count for category ID: {target.category_id}")
     connection.execute(
         Category.__table__.update()
         .where(Category.id == target.category_id)
@@ -246,13 +257,17 @@ def increment_category_article_count(mapper, connection, target):
 @event.listens_for(Article, "after_delete")
 def decrement_category_article_count(mapper, connection, target):
     """
-    Decrement the article_count of the category when an article is deleted.
+    Maintain accurate article counts in categories.
+
+    Decrements the denormalized article_count when articles are deleted,
+    using GREATEST to prevent counts from going negative in edge cases.
 
     Args:
         mapper: The mapper which is the target of this event
         connection: The Connection being used
         target: The instance being deleted
     """
+    logger.debug(f"Decrementing article count for category ID: {target.category_id}")
     connection.execute(
         Category.__table__.update()
         .where(Category.id == target.category_id)
@@ -260,17 +275,21 @@ def decrement_category_article_count(mapper, connection, target):
     )
 
 
-# Event listener to create user preferences for all categories when a user is created
 @event.listens_for(User, "after_insert")
 def create_user_preferences(mapper, connection, target):
     """
-    Create default preferences for all categories when a new user is created.
+    Automatically initialize user preferences.
+
+    Creates default preference entries for all categories when a new user
+    is created. This ensures consistent behavior in the recommendation
+    system by guaranteeing that all users have complete preference records.
 
     Args:
         mapper: The mapper which is the target of this event
         connection: The Connection being used
         target: The User instance being inserted
     """
+    logger.debug(f"Creating default preferences for new user ID: {target.id}")
     # Get all category IDs
     categories = connection.execute(Category.__table__.select()).fetchall()
 
@@ -281,3 +300,6 @@ def create_user_preferences(mapper, connection, target):
                 user_id=target.id, category_id=category.id, score=0, blacklisted=False
             )
         )
+    logger.debug(
+        f"Created {len(categories)} default preferences for user ID: {target.id}"
+    )

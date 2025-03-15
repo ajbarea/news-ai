@@ -5,6 +5,7 @@ setup for the News AI backend server. It provides RESTful endpoints for
 accessing news articles, categories, sources, and user preferences.
 """
 
+from .utils import patches  # noqa: F401
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, List, Optional
 import jwt
@@ -17,6 +18,13 @@ from .database.database import get_db, engine, Base
 from .database.seed import seed_all, teardown
 from . import models, schemas
 from contextlib import asynccontextmanager
+from .utils.logging_config import setup_logging, get_logger
+from .utils.log_helpers import log_create, log_update, log_delete, log_read
+from .middleware.request_logging import RequestLoggingMiddleware
+
+# Set up logging using the centralized configuration
+setup_logging()
+logger = get_logger(__name__)
 
 # Security configuration
 SECRET_KEY = "4735ea57b2de730edcbb12a0e707f4cd9424378d2563611404e29b6a1c6b160e"
@@ -38,13 +46,20 @@ async def lifespan(app: FastAPI):
     This replaces the deprecated on_event handlers.
     """
     # Startup: Initialize the database with seed data
+    logger.info("Application startup: Initializing database")
     teardown()
     seed_all()
     yield
+    logger.info("Application shutdown")
 
 
 # Initialize FastAPI application with lifespan
-app = FastAPI(title="News AI API", lifespan=lifespan)
+app = FastAPI(
+    title="News AI API",
+    description="API for accessing personalized news articles and user preferences",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 # Add CORS middleware to allow cross-origin requests
 app.add_middleware(
@@ -55,6 +70,9 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+# Add request logging middleware for correlation IDs and performance tracking
+app.add_middleware(RequestLoggingMiddleware)
+
 # Create database tables on startup if they don't exist
 Base.metadata.create_all(bind=engine)
 
@@ -62,7 +80,10 @@ Base.metadata.create_all(bind=engine)
 # Authentication helper functions
 def verify_password(plain_password, hashed_password):
     """
-    Verify a password against its hash using bcrypt.
+    Verify a password against its stored hash using bcrypt.
+
+    Password verification is wrapped in exception handling to prevent
+    cryptic errors when invalid hash formats are encountered.
 
     Args:
         plain_password: The plain text password to verify
@@ -74,30 +95,38 @@ def verify_password(plain_password, hashed_password):
     try:
         return pwd_context.verify(plain_password, hashed_password)
     except Exception as e:
-        print(f"Password verification error: {e}")
+        logger.error(
+            f"Password verification failed: {type(e).__name__} - Check hash format integrity"
+        )
         return False
 
 
 def get_password_hash(password):
     """
-    Hash a password using bcrypt.
+    Hash a password using bcrypt with secure settings.
+
+    Creates a cryptographically secure password hash using the
+    configured work factor in CryptContext.
 
     Args:
         password: The plain text password to hash
 
     Returns:
-        str: The hashed password
+        str: The securely hashed password
     """
     return pwd_context.hash(password)
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     """
-    Create a JWT access token.
+    Create a JWT access token with configurable expiration.
+
+    Follows JWT best practices by including expiration time
+    and using a secure signing algorithm.
 
     Args:
-        data: The data to encode in the token
-        expires_delta: Optional expiration time delta
+        data: The claims to encode in the token
+        expires_delta: Optional custom expiration time
 
     Returns:
         str: The encoded JWT token
@@ -117,6 +146,8 @@ def get_user_by_username(db: Session, username: str):
     """
     Retrieve a user from the database by username.
 
+    Performs a case-sensitive username lookup for security reasons.
+
     Args:
         db: Database session
         username: The username to look up
@@ -131,6 +162,9 @@ def authenticate_user(db: Session, username: str, password: str):
     """
     Authenticate a user with username and password.
 
+    Implements constant-time comparison via bcrypt to prevent timing attacks.
+    Logs authentication attempts for security auditing without exposing credentials.
+
     Args:
         db: Database session
         username: The username to authenticate
@@ -141,13 +175,13 @@ def authenticate_user(db: Session, username: str, password: str):
     """
     user = get_user_by_username(db, username)
     if not user:
-        print(f"User not found: {username}")
+        logger.info(f"Authentication failed: User not found [username={username}]")
         return False
 
     # Try to verify password
     valid = verify_password(password, user.password_hash)
     if not valid:
-        print(f"Invalid password for user: {username}")
+        logger.info(f"Authentication failed: Invalid password [username={username}]")
 
     return user if valid else False
 
@@ -157,7 +191,9 @@ async def get_current_user(
 ):
     """
     Get the current authenticated user from a JWT token.
-    Used as a dependency for protected endpoints.
+
+    Validates JWT tokens and extracts user identity for protected endpoints.
+    Performs comprehensive error handling to provide secure authentication.
 
     Args:
         token: The JWT token from the request
@@ -167,7 +203,7 @@ async def get_current_user(
         User: The authenticated user
 
     Raises:
-        HTTPException: If token is invalid or user not found
+        HTTPException: If token is invalid, expired or user not found
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -180,14 +216,27 @@ async def get_current_user(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         if username is None:
+            logger.warning("Token validation failed: Missing subject claim in token")
             raise credentials_exception
         token_data = schemas.TokenData(username=username)
-    except jwt.PyJWTError:  # Catch all JWT exceptions
+    except jwt.ExpiredSignatureError:
+        logger.info("Token validation failed: Token has expired")
+        raise credentials_exception
+    except jwt.InvalidTokenError:
+        logger.warning("Token validation failed: Invalid token format")
+        raise credentials_exception
+    except Exception as e:
+        logger.error(
+            f"Unexpected token validation error: {type(e).__name__} - {str(e)}"
+        )
         raise credentials_exception
 
     # Get the user from database
     user = get_user_by_username(db, username=token_data.username)
     if user is None:
+        logger.warning(
+            f"Token validation failed: User not found [username={token_data.username}]"
+        )
         raise credentials_exception
 
     return user
@@ -223,13 +272,20 @@ async def get_optional_current_user(
         user = get_user_by_username(db, username=username)
         return user
     except jwt.PyJWTError:
+        logger.debug("Optional authentication: Invalid JWT token")
         return None
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Optional authentication error: {e}")
         return None
 
 
 # API Routes
-@app.get("/", tags=["Root"])
+@app.get(
+    "/",
+    tags=["Root"],
+    summary="API Status Check",
+    description="Root endpoint to verify the API is running",
+)
 def read_root():
     """
     Root endpoint to check API status.
@@ -240,7 +296,14 @@ def read_root():
     return {"message": "News AI API"}
 
 
-@app.post("/register", response_model=schemas.User, tags=["Authentication"])
+@app.post(
+    "/register",
+    response_model=schemas.User,
+    tags=["Authentication"],
+    status_code=status.HTTP_201_CREATED,
+    summary="Register a new user",
+    description="Create a new user account with username, email, and password",
+)
 def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     """
     Register a new user.
@@ -257,6 +320,7 @@ def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     """
     db_user = get_user_by_username(db, username=user.username)
     if db_user:
+        logger.info(f"Registration failed: Username already exists - {user.username}")
         raise HTTPException(status_code=400, detail="Username already registered")
 
     hashed_password = get_password_hash(user.password)
@@ -269,10 +333,18 @@ def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
+
+    log_create("user", db_user.id, None, username=user.username)
     return db_user
 
 
-@app.post("/token", response_model=schemas.Token, tags=["Authentication"])
+@app.post(
+    "/token",
+    response_model=schemas.Token,
+    tags=["Authentication"],
+    summary="Authenticate user and get token",
+    description="Login with username and password to obtain a JWT access token",
+)
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Session = Depends(get_db),
@@ -292,6 +364,9 @@ async def login_for_access_token(
     """
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
+        logger.info(
+            f"Login failed: Invalid credentials for user - {form_data.username}"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -303,6 +378,7 @@ async def login_for_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
 
+    logger.info(f"User authenticated successfully: {form_data.username}")
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -319,6 +395,7 @@ async def read_users_me(
     Returns:
         User: Current user information
     """
+    log_read("user", current_user.id, current_user.id)
     return current_user
 
 
@@ -342,12 +419,15 @@ async def update_user(
     Raises:
         HTTPException: If username or email already exists for another user
     """
+    changed_fields = []
+
     # Check if username is being updated and already exists
     if user_update.username and user_update.username != current_user.username:
         existing_user = get_user_by_username(db, user_update.username)
         if existing_user:
             raise HTTPException(status_code=400, detail="Username already registered")
         current_user.username = user_update.username
+        changed_fields.append("username")
 
     # Check if email is being updated and already exists
     if user_update.email and user_update.email != current_user.email:
@@ -357,13 +437,17 @@ async def update_user(
         if existing_email:
             raise HTTPException(status_code=400, detail="Email already registered")
         current_user.email = user_update.email
+        changed_fields.append("email")
 
     # Update name if provided
     if user_update.name is not None:
         current_user.name = user_update.name
+        changed_fields.append("name")
 
     db.commit()
     db.refresh(current_user)
+
+    log_update("user", current_user.id, current_user.id, changed_fields=changed_fields)
     return current_user
 
 
@@ -383,10 +467,14 @@ async def delete_user(
     Returns:
         None: 204 No Content response on successful deletion
     """
+    user_id = current_user.id
+    username = current_user.username
+
     # Delete the user
     db.delete(current_user)
     db.commit()
 
+    log_delete("user", user_id, user_id, username=username)
     return None
 
 
@@ -421,6 +509,7 @@ async def change_password(
     db.commit()
     db.refresh(current_user)
 
+    log_update("user", current_user.id, current_user.id, changed_fields=["password"])
     return current_user
 
 
@@ -454,7 +543,13 @@ def get_sources(db: Session = Depends(get_db)):
     return sources
 
 
-@app.get("/articles", response_model=List[schemas.ArticleDetail], tags=["Articles"])
+@app.get(
+    "/articles",
+    response_model=List[schemas.ArticleDetail],
+    tags=["Articles"],
+    summary="Get news articles",
+    description="Retrieve news articles with optional filtering by category. If authenticated, respects user preferences and blacklists.",
+)
 def get_articles(
     skip: int = 0,
     limit: int = 50,
@@ -485,7 +580,9 @@ def get_articles(
 
     # Filter out blacklisted sources and articles if user is authenticated
     if current_user:
-        print(f"User authenticated: {current_user.username} (ID: {current_user.id})")
+        logger.debug(
+            f"User authenticated: {current_user.username} (ID: {current_user.id})"
+        )
 
         # Get all blacklisted category IDs for this user
         blacklisted_categories_query = db.query(
@@ -495,21 +592,23 @@ def get_articles(
             models.UserPreference.blacklisted.is_(True),
         )
 
-        # Execute the query to get the actual IDs for debugging
+        # Execute the query to get the actual IDs
         blacklisted_category_ids = [
             row[0] for row in blacklisted_categories_query.all()
         ]
 
         if blacklisted_category_ids:
-            print(f"Found blacklisted categories: {blacklisted_category_ids}")
+            logger.debug(
+                f"Filtering out blacklisted categories: {blacklisted_category_ids}"
+            )
 
-            # Get the names of blacklisted categories for better debugging
+            # Get the names of blacklisted categories for logging
             blacklisted_category_names = (
                 db.query(models.Category.name)
                 .filter(models.Category.id.in_(blacklisted_category_ids))
                 .all()
             )
-            print(
+            logger.debug(
                 f"Blacklisted category names: {[name[0] for name in blacklisted_category_names]}"
             )
 
@@ -518,26 +617,26 @@ def get_articles(
                 models.Article.category_id.notin_(blacklisted_category_ids)
             )
         else:
-            print("No blacklisted categories found for this user")
+            logger.debug("No blacklisted categories found for this user")
 
         # Get all blacklisted source IDs for this user
         blacklisted_sources_query = db.query(
             models.UserSourceBlacklist.source_id
         ).filter(models.UserSourceBlacklist.user_id == current_user.id)
 
-        # Execute the query to get the actual IDs for debugging
+        # Execute the query to get the actual IDs
         blacklisted_source_ids = [row[0] for row in blacklisted_sources_query.all()]
 
         if blacklisted_source_ids:
-            print(f"Found blacklisted sources: {blacklisted_source_ids}")
+            logger.debug(f"Filtering out blacklisted sources: {blacklisted_source_ids}")
 
-            # Get the names of blacklisted sources for better debugging
+            # Get the names of blacklisted sources for logging
             blacklisted_source_names = (
                 db.query(models.Source.name)
                 .filter(models.Source.id.in_(blacklisted_source_ids))
                 .all()
             )
-            print(
+            logger.debug(
                 f"Blacklisted source names: {[name[0] for name in blacklisted_source_names]}"
             )
 
@@ -546,25 +645,27 @@ def get_articles(
                 models.Article.source_id.notin_(blacklisted_source_ids)
             )
         else:
-            print("No blacklisted sources found for this user")
+            logger.debug("No blacklisted sources found for this user")
 
         # Get all blacklisted article IDs for this user
         blacklisted_articles_query = db.query(
             models.UserArticleBlacklist.article_id
         ).filter(models.UserArticleBlacklist.user_id == current_user.id)
 
-        # Execute the query to get the actual IDs for debugging
+        # Execute the query to get the actual IDs
         blacklisted_article_ids = [row[0] for row in blacklisted_articles_query.all()]
 
         if blacklisted_article_ids:
-            print(f"Found blacklisted articles: {blacklisted_article_ids}")
+            logger.debug(
+                f"Filtering out blacklisted articles: {blacklisted_article_ids}"
+            )
 
             # Exclude individually blacklisted articles
             query = query.filter(models.Article.id.notin_(blacklisted_article_ids))
         else:
-            print("No blacklisted articles found for this user")
+            logger.debug("No blacklisted articles found for this user")
     else:
-        print("No authenticated user - showing all articles")
+        logger.debug("No authenticated user - showing all articles")
 
     # Apply pagination and ordering
     articles = (
@@ -574,34 +675,8 @@ def get_articles(
         .all()
     )
 
-    # Debug information about returned articles
-    print(f"Returning {len(articles)} articles")
-
-    # Verify filtering worked correctly if user is authenticated
-    if current_user:
-        # Check for articles from blacklisted categories
-        if "blacklisted_category_ids" in locals() and blacklisted_category_ids:
-            for article in articles:
-                if article.category_id in blacklisted_category_ids:
-                    print(
-                        f"WARNING: Article {article.id} from blacklisted category {article.category_id} was not filtered!"
-                    )
-
-        # Check for articles from blacklisted sources
-        if "blacklisted_source_ids" in locals() and blacklisted_source_ids:
-            for article in articles:
-                if article.source_id in blacklisted_source_ids:
-                    print(
-                        f"WARNING: Article {article.id} from blacklisted source {article.source_id} was not filtered!"
-                    )
-
-        # Check for individually blacklisted articles
-        if "blacklisted_article_ids" in locals() and blacklisted_article_ids:
-            for article in articles:
-                if article.id in blacklisted_article_ids:
-                    print(
-                        f"WARNING: Blacklisted article {article.id} was not filtered!"
-                    )
+    # Log information about returned articles
+    logger.debug(f"Returning {len(articles)} articles")
 
     return articles
 
@@ -668,13 +743,13 @@ def get_user_preferences(
     )
 
     # Add debugging to verify preferences and their blacklisted status
-    print(f"Found {len(preferences)} preferences for user {user_id}")
+    logger.debug(f"Found {len(preferences)} preferences for user {user_id}")
     blacklisted_prefs = [p for p in preferences if p.blacklisted]
-    print(f"Of which {len(blacklisted_prefs)} are blacklisted")
+    logger.debug(f"Of which {len(blacklisted_prefs)} are blacklisted")
 
     for pref in blacklisted_prefs:
         category_name = pref.category.name if pref.category else "Unknown"
-        print(
+        logger.debug(
             f"Blacklisted preference: id={pref.id}, category={category_name}, value={pref.blacklisted}"
         )
 
@@ -702,6 +777,9 @@ def search_articles(
 
     Returns:
         List[ArticleDetail]: List of articles that match the search query
+
+    Raises:
+        HTTPException: If search query is too short
     """
     if not query or len(query.strip()) < 2:
         raise HTTPException(
@@ -761,6 +839,7 @@ async def get_blacklisted_sources(
         .filter(models.Source.id.in_(blacklisted_source_ids))
         .all()
     )
+
     return sources
 
 
@@ -956,6 +1035,17 @@ async def add_blacklisted_article(
     db.add(blacklist_entry)
     db.commit()
 
+    logger.info(
+        "Article blacklisted",
+        extra={
+            "user_id": current_user.id,
+            "article_id": article.id,
+            "article_title": (
+                article.title[:30] + "..." if len(article.title) > 30 else article.title
+            ),
+        },
+    )
+
     return article
 
 
@@ -997,6 +1087,9 @@ async def remove_blacklisted_article(
 
     db.delete(blacklist_entry)
     db.commit()
+
+    # Use the helper for consistent logging
+    log_delete("article_blacklist", article_id, current_user.id)
 
     return None
 
@@ -1065,11 +1158,13 @@ async def track_article_read(
     "/users/me/preferences/{category_id}",
     response_model=schemas.UserPreference,
     tags=["Users"],
+    summary="Update user category preference",  # Add a summary
+    description="Update the user's preference score and blacklist status for a specific content category",  # Add a description
 )
 async def update_user_preference(
     category_id: int,
-    preference: schemas.UserPreferenceUpdate,
     current_user: Annotated[models.User, Depends(get_current_user)],
+    preference: schemas.UserPreferenceUpdate,
     db: Session = Depends(get_db),
 ):
     """
@@ -1158,6 +1253,7 @@ async def get_favorite_articles(
         .filter(models.Article.id.in_(favorite_article_ids))
         .all()
     )
+
     return articles
 
 
