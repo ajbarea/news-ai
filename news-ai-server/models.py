@@ -50,6 +50,9 @@ class User(Base):
     blacklisted_articles = relationship(
         "UserArticleBlacklist", back_populates="user", cascade="all, delete-orphan"
     )
+    favorite_articles = relationship(
+        "UserFavoriteArticle", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Category(Base):
@@ -171,6 +174,7 @@ class Article(Base):
     category = relationship("Category", back_populates="articles")
     source = relationship("Source", back_populates="articles")
     blacklisted_by = relationship("UserArticleBlacklist", back_populates="article")
+    favorited_by = relationship("UserFavoriteArticle", back_populates="article")
 
 
 class UserArticleBlacklist(Base):
@@ -194,6 +198,31 @@ class UserArticleBlacklist(Base):
     # Relationships
     user = relationship("User", back_populates="blacklisted_articles")
     article = relationship("Article", back_populates="blacklisted_by")
+
+
+class UserFavoriteArticle(Base):
+    """
+    UserFavoriteArticle model representing articles a user has saved as favorites.
+
+    This association table connects users to articles they want to save for later reference.
+    """
+
+    __tablename__ = "user_favorite_articles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    article_id = Column(
+        Integer, ForeignKey("articles.id", ondelete="CASCADE"), nullable=False
+    )
+    favorited_at = Column(
+        TIMESTAMP, server_default=func.now()
+    )  # When the article was favorited
+
+    # Relationships
+    user = relationship("User", back_populates="favorite_articles")
+    article = relationship("Article", back_populates="favorited_by")
 
 
 # Event listeners to update article counts in categories when articles are added/deleted

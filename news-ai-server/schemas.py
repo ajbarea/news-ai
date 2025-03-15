@@ -255,3 +255,33 @@ class UserArticleBlacklist(UserArticleBlacklistBase):
 
     class Config:
         from_attributes = True
+
+
+class UserFavoriteArticleBase(BaseModel):
+    """
+    Base schema for user favorite article operations.
+    """
+
+    article_id: int
+
+
+class UserFavoriteArticleCreate(UserFavoriteArticleBase):
+    """
+    Schema for adding an article to favorites.
+    """
+
+    pass
+
+
+class UserFavoriteArticle(UserFavoriteArticleBase):
+    """
+    Complete schema for user favorite article responses.
+    """
+
+    id: int
+    user_id: int
+    favorited_at: datetime
+    article: Optional[Article] = None
+
+    class Config:
+        from_attributes = True

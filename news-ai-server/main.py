@@ -1122,3 +1122,137 @@ async def update_user_preference(
     db.refresh(user_preference)
 
     return user_preference
+
+
+@app.get(
+    "/users/me/favorite-articles",
+    response_model=List[schemas.ArticleDetail],
+    tags=["Users"],
+)
+async def get_favorite_articles(
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """
+    Get all articles that the current user has saved as favorites.
+
+    Args:
+        current_user: Current authenticated user (from token)
+        db: Database session
+
+    Returns:
+        List[ArticleDetail]: List of favorited articles
+    """
+    favorite_article_ids = [
+        row[0]
+        for row in db.query(models.UserFavoriteArticle.article_id)
+        .filter(models.UserFavoriteArticle.user_id == current_user.id)
+        .all()
+    ]
+
+    articles = (
+        db.query(models.Article)
+        .filter(models.Article.id.in_(favorite_article_ids))
+        .all()
+    )
+    return articles
+
+
+@app.post(
+    "/users/me/favorite-articles",
+    response_model=schemas.Article,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Users"],
+)
+async def add_favorite_article(
+    article_data: schemas.UserFavoriteArticleCreate,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """
+    Add an article to the current user's favorites.
+
+    Args:
+        article_data: Contains article_id to add to favorites
+        current_user: Current authenticated user (from token)
+        db: Database session
+
+    Returns:
+        Article: The favorited article
+
+    Raises:
+        HTTPException: If article not found or already in favorites
+    """
+    # Check if article exists
+    article = (
+        db.query(models.Article)
+        .filter(models.Article.id == article_data.article_id)
+        .first()
+    )
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    # Check if already in favorites
+    existing = (
+        db.query(models.UserFavoriteArticle)
+        .filter(
+            models.UserFavoriteArticle.user_id == current_user.id,
+            models.UserFavoriteArticle.article_id == article_data.article_id,
+        )
+        .first()
+    )
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Article already in favorites")
+
+    # Create favorite entry
+    favorite_entry = models.UserFavoriteArticle(
+        user_id=current_user.id, article_id=article_data.article_id
+    )
+
+    db.add(favorite_entry)
+    db.commit()
+
+    return article
+
+
+@app.delete(
+    "/users/me/favorite-articles/{article_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["Users"],
+)
+async def remove_favorite_article(
+    article_id: int,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """
+    Remove an article from the current user's favorites.
+
+    Args:
+        article_id: ID of the article to remove from favorites
+        current_user: Current authenticated user (from token)
+        db: Database session
+
+    Returns:
+        None: 204 No Content response on successful removal
+
+    Raises:
+        HTTPException: If article not found in favorites
+    """
+    favorite_entry = (
+        db.query(models.UserFavoriteArticle)
+        .filter(
+            models.UserFavoriteArticle.user_id == current_user.id,
+            models.UserFavoriteArticle.article_id == article_id,
+        )
+        .first()
+    )
+
+    if not favorite_entry:
+        raise HTTPException(status_code=404, detail="Article not found in favorites")
+
+    db.delete(favorite_entry)
+    db.commit()
+
+    return None

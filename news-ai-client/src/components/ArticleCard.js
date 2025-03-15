@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardBody,
@@ -18,11 +18,12 @@ import {
   UncontrolledTooltip,
   Alert
 } from 'reactstrap';
-import { FaBookmark, FaArrowRight, FaEllipsisV, FaBan, FaThumbsDown, FaMicrophone, FaSyncAlt } from "react-icons/fa";
+import { FaBookmark, FaArrowRight, FaEllipsisV, FaBan, FaThumbsDown, FaMicrophone, FaSyncAlt, FaRegBookmark } from "react-icons/fa";
 import { useAuth } from '../context/AuthContext';
 import SourceService from '../services/sourceService';
 import ArticleService from '../services/articleService';
 import UserPreferenceService from '../services/userPreferenceService';
+import FavoriteArticleService from '../services/favoriteArticleService';
 
 const ArticleActions = ({ article, source, sourceId, category, categoryId }) => {
   const { isAuthenticated } = useAuth();
@@ -228,9 +229,20 @@ const ArticleMetadata = ({ category, date, source, sourceLogo, subscriptionRequi
   );
 };
 
-function ArticleCard({ article }) {
+function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }) {
   const { isAuthenticated } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [feedback, setFeedback] = useState({ show: false, message: '', type: 'success' });
+
   const placeholderImage = `https://media.istockphoto.com/id/1369150014/vector/breaking-news-with-world-map-background-vector.jpg?s=612x612&w=0&k=20&c=9pR2-nDBhb7cOvvZU_VdgkMmPJXrBQ4rB1AkTXxRIKM=`;
+
+  // Determine if article is in favorites
+  useEffect(() => {
+    if (article.id && favoriteArticles.length > 0) {
+      setIsFavorited(FavoriteArticleService.isArticleFavorited(favoriteArticles, article.id));
+    }
+  }, [article.id, favoriteArticles]);
 
   // Extract source information
   let sourceName = "Unknown";
@@ -284,8 +296,74 @@ function ArticleCard({ article }) {
     window.open(article.url, '_blank');
   };
 
+  const handleToggleFavorite = async (e) => {
+    e.preventDefault();
+
+    if (!isAuthenticated()) {
+      setFeedback({
+        show: true,
+        message: 'Please log in to save articles to favorites',
+        type: 'warning'
+      });
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      if (isFavorited) {
+        await FavoriteArticleService.removeFromFavorites(article.id);
+        setFeedback({
+          show: true,
+          message: 'Article removed from favorites',
+          type: 'success'
+        });
+      } else {
+        await FavoriteArticleService.addToFavorites(article.id);
+        setFeedback({
+          show: true,
+          message: 'Article added to favorites',
+          type: 'success'
+        });
+      }
+
+      setIsFavorited(!isFavorited);
+
+      // Notify parent component if callback provided
+      if (onFavoriteChange) {
+        onFavoriteChange(article.id, !isFavorited);
+      }
+    } catch (error) {
+      console.error('Error toggling favorite status:', error);
+
+      let errorMessage = isFavorited
+        ? 'Failed to remove from favorites'
+        : 'Failed to add to favorites';
+
+      if (error.response && error.response.data && error.response.data.detail) {
+        errorMessage = error.response.data.detail;
+      }
+
+      setFeedback({
+        show: true,
+        message: errorMessage,
+        type: 'danger'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <Card className="h-100 shadow-sm position-relative">
+      {feedback.show && (
+        <div className="position-fixed top-0 end-0 p-3" style={{ zIndex: 1050 }}>
+          <Alert color={feedback.type} toggle={() => setFeedback({ ...feedback, show: false })}>
+            {feedback.message}
+          </Alert>
+        </div>
+      )}
+
       <div className="position-absolute top-0 end-0 mt-2 me-2 z-index-1">
         <ArticleActions
           article={article}
@@ -325,12 +403,17 @@ function ArticleCard({ article }) {
                 id={`bookmark-${articleId}`}
                 color="light"
                 className="rounded-start shadow-sm border border-light"
-                aria-label="Bookmark article"
+                aria-label={isFavorited ? "Remove from bookmarks" : "Bookmark article"}
+                onClick={handleToggleFavorite}
+                disabled={isLoading}
               >
-                <FaBookmark className="text-primary" />
+                {isFavorited ?
+                  <FaBookmark className="text-danger" /> :
+                  <FaRegBookmark className="text-primary" />
+                }
               </Button>
               <UncontrolledTooltip placement="top" target={`bookmark-${articleId}`}>
-                Save to bookmarks
+                {isFavorited ? "Remove from bookmarks" : "Save to bookmarks"}
               </UncontrolledTooltip>
 
               <Button

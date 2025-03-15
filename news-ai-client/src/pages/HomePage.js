@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Button, ButtonGroup, Card, CardText, Spinner } from 'reactstrap';
 import ArticleCard from '../components/ArticleCard';
 import { apiClient } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
+import FavoriteArticleService from '../services/favoriteArticleService';
 
 function HomePage() {
     const [articles, setArticles] = useState([]);
@@ -11,6 +13,9 @@ function HomePage() {
     const [activeCategory, setActiveCategory] = useState('All');
     const [visibleArticles, setVisibleArticles] = useState(9); // Initially show 9 articles
     const articlesPerPage = 6; // Load 6 more articles on each click
+    const [favoriteArticles, setFavoriteArticles] = useState([]);
+    const [loadingFavorites, setLoadingFavorites] = useState(false);
+    const { isAuthenticated } = useAuth();
 
     // Fetch articles from API
     useEffect(() => {
@@ -40,6 +45,39 @@ function HomePage() {
 
         fetchData();
     }, []);
+
+    // Fetch user's favorite articles if authenticated
+    useEffect(() => {
+        const fetchFavorites = async () => {
+            if (!isAuthenticated()) return;
+
+            try {
+                setLoadingFavorites(true);
+                const favorites = await FavoriteArticleService.getFavoriteArticles();
+                setFavoriteArticles(favorites);
+            } catch (err) {
+                console.error('Error fetching favorites:', err);
+            } finally {
+                setLoadingFavorites(false);
+            }
+        };
+
+        fetchFavorites();
+    }, [isAuthenticated]);
+
+    // Handle favorite change from ArticleCard
+    const handleFavoriteChange = (articleId, isFavorite) => {
+        if (isFavorite) {
+            // Find the article and add it to favorites
+            const article = articles.find(a => a.id === articleId);
+            if (article) {
+                setFavoriteArticles(prev => [...prev, article]);
+            }
+        } else {
+            // Remove from favorites
+            setFavoriteArticles(prev => prev.filter(a => a.id !== articleId));
+        }
+    };
 
     // Format articles for display
     const formatArticle = (article) => ({
@@ -130,11 +168,33 @@ function HomePage() {
                         </Card>
                     </Col>
                 </Row>
+            ) : loadingFavorites ? (
+                <Row>
+                    {currentArticles.map(article => (
+                        <Col key={article.id} md="6" lg="4" className="mb-4">
+                            <div className="position-relative">
+                                <ArticleCard
+                                    article={article}
+                                    favoriteArticles={[]}
+                                    onFavoriteChange={handleFavoriteChange}
+                                />
+                                {/* Small loading indicator for bookmark status */}
+                                <div className="position-absolute top-0 end-0 mt-3 me-3">
+                                    <Spinner size="sm" color="primary" />
+                                </div>
+                            </div>
+                        </Col>
+                    ))}
+                </Row>
             ) : (
                 <Row>
                     {currentArticles.map(article => (
                         <Col key={article.id} md="6" lg="4" className="mb-4">
-                            <ArticleCard article={article} />
+                            <ArticleCard
+                                article={article}
+                                favoriteArticles={favoriteArticles}
+                                onFavoriteChange={handleFavoriteChange}
+                            />
                         </Col>
                     ))}
                 </Row>

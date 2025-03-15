@@ -13,13 +13,18 @@ import {
     Col,
     Alert,
     Badge,
-    Spinner
+    Spinner,
+    Card,
+    CardBody
 } from 'reactstrap';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import SettingsModal from './SettingsModal';
 import SourceService from '../services/sourceService';
 import UserPreferenceService from '../services/userPreferenceService';
+import FavoriteArticleService from '../services/favoriteArticleService';
+import ArticleService from '../services/articleService';
+import { FaBookmark, FaTrash, FaBan } from 'react-icons/fa';
 
 function ProfileModal({ isOpen, toggle }) {
     const { currentUser, updateProfile } = useAuth();
@@ -45,6 +50,12 @@ function ProfileModal({ isOpen, toggle }) {
     const [unblockCategoryModal, setUnblockCategoryModal] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [unblockCategoryLoading, setUnblockCategoryLoading] = useState(false);
+    const [favoriteArticles, setFavoriteArticles] = useState([]);
+    const [loadingFavorites, setLoadingFavorites] = useState(false);
+    const [removingArticleId, setRemovingArticleId] = useState(null);
+    const [blacklistedArticles, setBlacklistedArticles] = useState([]);
+    const [loadingBlacklistedArticles, setLoadingBlacklistedArticles] = useState(false);
+    const [removingBlacklistedArticleId, setRemovingBlacklistedArticleId] = useState(null);
 
     useEffect(() => {
         if (currentUser) {
@@ -60,6 +71,8 @@ function ProfileModal({ isOpen, toggle }) {
             if (isOpen) {
                 fetchBlacklistedSources();
                 fetchBlacklistedCategories();
+                fetchFavoriteArticles();
+                fetchBlacklistedArticles(); // Add this line to fetch blacklisted articles
             }
         }
     }, [currentUser, isOpen]);
@@ -149,6 +162,38 @@ function ProfileModal({ isOpen, toggle }) {
             }
         } finally {
             setLoadingCategories(false);
+        }
+    };
+
+    const fetchFavoriteArticles = async () => {
+        try {
+            setLoadingFavorites(true);
+            const articles = await FavoriteArticleService.getFavoriteArticles();
+            setFavoriteArticles(articles);
+        } catch (error) {
+            console.error('Error fetching favorite articles:', error);
+            setMessage({
+                type: 'danger',
+                text: 'Failed to load favorite articles. Please try again.'
+            });
+        } finally {
+            setLoadingFavorites(false);
+        }
+    };
+
+    const fetchBlacklistedArticles = async () => {
+        try {
+            setLoadingBlacklistedArticles(true);
+            const articles = await ArticleService.getBlacklistedArticles();
+            setBlacklistedArticles(articles);
+        } catch (error) {
+            console.error('Error fetching blacklisted articles:', error);
+            setMessage({
+                type: 'danger',
+                text: 'Failed to load blacklisted articles. Please try again.'
+            });
+        } finally {
+            setLoadingBlacklistedArticles(false);
         }
     };
 
@@ -443,6 +488,158 @@ function ProfileModal({ isOpen, toggle }) {
         );
     };
 
+    const handleRemoveFavorite = async (articleId) => {
+        try {
+            setRemovingArticleId(articleId);
+            await FavoriteArticleService.removeFromFavorites(articleId);
+
+            // Update the favorites list
+            setFavoriteArticles(current =>
+                current.filter(article => article.id !== articleId)
+            );
+
+            setMessage({
+                type: 'success',
+                text: 'Article removed from favorites'
+            });
+
+            // Clear the message after a delay
+            setTimeout(() => setMessage(null), 3000);
+        } catch (error) {
+            console.error('Error removing favorite:', error);
+            setMessage({
+                type: 'danger',
+                text: 'Failed to remove article from favorites'
+            });
+        } finally {
+            setRemovingArticleId(null);
+        }
+    };
+
+    const handleRemoveBlacklistedArticle = async (articleId) => {
+        try {
+            setRemovingBlacklistedArticleId(articleId);
+            await ArticleService.removeFromBlacklist(articleId);
+
+            // Update the blacklisted articles list
+            setBlacklistedArticles(current =>
+                current.filter(article => article.id !== articleId)
+            );
+
+            setMessage({
+                type: 'success',
+                text: 'Article removed from blacklist'
+            });
+
+            // Clear the message after a delay
+            setTimeout(() => setMessage(null), 3000);
+        } catch (error) {
+            console.error('Error removing from blacklist:', error);
+            setMessage({
+                type: 'danger',
+                text: 'Failed to remove article from blacklist'
+            });
+        } finally {
+            setRemovingBlacklistedArticleId(null);
+        }
+    };
+
+    const handleArticleClick = (url) => {
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
+
+    // Render favorite articles
+    const renderFavoriteArticles = () => {
+        if (loadingFavorites) {
+            return <Spinner size="sm" color="primary" />;
+        }
+
+        if (favoriteArticles.length === 0) {
+            return <p className="text-muted mb-0">No favorite articles saved</p>;
+        }
+
+        return (
+            <div className="favorite-articles">
+                {favoriteArticles.map(article => (
+                    <Card key={article.id} className="mb-2" style={{ borderLeft: '3px solid #007bff' }}>
+                        <CardBody className="p-2">
+                            <div className="d-flex justify-content-between align-items-start">
+                                <div className="favorite-article-title"
+                                    onClick={() => handleArticleClick(article.url)}
+                                    style={{ cursor: 'pointer', flex: 1 }}>
+                                    <span className="fw-bold">{article.title}</span>
+                                    <div className="d-flex mt-1">
+                                        <Badge color="primary" pill className="me-1">
+                                            {article.category ? article.category.name : 'Uncategorized'}
+                                        </Badge>
+                                        <Badge color="secondary" pill>
+                                            {article.source ? article.source.name : 'Unknown source'}
+                                        </Badge>
+                                    </div>
+                                </div>
+                                <Button
+                                    color="link"
+                                    className="p-0 ms-2 text-danger"
+                                    onClick={() => handleRemoveFavorite(article.id)}
+                                    disabled={removingArticleId === article.id}>
+                                    {removingArticleId === article.id ?
+                                        <Spinner size="sm" /> :
+                                        <FaTrash size="0.8em" />}
+                                </Button>
+                            </div>
+                        </CardBody>
+                    </Card>
+                ))}
+            </div>
+        );
+    };
+
+    // Render blacklisted articles
+    const renderBlacklistedArticles = () => {
+        if (loadingBlacklistedArticles) {
+            return <Spinner size="sm" color="primary" />;
+        }
+
+        if (blacklistedArticles.length === 0) {
+            return <p className="text-muted mb-0">No blacklisted articles</p>;
+        }
+
+        return (
+            <div className="blacklisted-articles">
+                {blacklistedArticles.map(article => (
+                    <Card key={article.id} className="mb-2" style={{ borderLeft: '3px solid #dc3545' }}>
+                        <CardBody className="p-2">
+                            <div className="d-flex justify-content-between align-items-start">
+                                <div className="blacklisted-article-title"
+                                    onClick={() => handleArticleClick(article.url)}
+                                    style={{ cursor: 'pointer', flex: 1 }}>
+                                    <span className="fw-bold">{article.title}</span>
+                                    <div className="d-flex mt-1">
+                                        <Badge color="primary" pill className="me-1">
+                                            {article.category ? article.category.name : 'Uncategorized'}
+                                        </Badge>
+                                        <Badge color="secondary" pill>
+                                            {article.source ? article.source.name : 'Unknown source'}
+                                        </Badge>
+                                    </div>
+                                </div>
+                                <Button
+                                    color="link"
+                                    className="p-0 ms-2 text-primary"
+                                    onClick={() => handleRemoveBlacklistedArticle(article.id)}
+                                    disabled={removingBlacklistedArticleId === article.id}>
+                                    {removingBlacklistedArticleId === article.id ?
+                                        <Spinner size="sm" /> :
+                                        <FaTrash size="0.8em" />}
+                                </Button>
+                            </div>
+                        </CardBody>
+                    </Card>
+                ))}
+            </div>
+        );
+    };
+
     return (
         <>
             <Modal isOpen={isOpen && !showSettings} toggle={toggle} size="lg">
@@ -483,12 +680,20 @@ function ProfileModal({ isOpen, toggle }) {
                                 </Col>
                             </Row>
                             <Row>
-                                <Col md="12" className="mb-3">
+                                <Col md="6" className="mb-3">
                                     <div className="border rounded p-3">
-                                        <h5>Reading Preferences</h5>
-                                        <p className="mb-0">
-                                            {currentUser?.preferences?.join(', ') || 'No preferences set'}
-                                        </p>
+                                        <h5 className="d-flex align-items-center mb-3">
+                                            <FaBookmark className="me-2 text-primary" /> Favorite Articles
+                                        </h5>
+                                        {renderFavoriteArticles()}
+                                    </div>
+                                </Col>
+                                <Col md="6" className="mb-3">
+                                    <div className="border rounded p-3">
+                                        <h5 className="d-flex align-items-center mb-3">
+                                            <FaBan className="me-2 text-danger" /> Hidden Articles
+                                        </h5>
+                                        {renderBlacklistedArticles()}
                                     </div>
                                 </Col>
                             </Row>

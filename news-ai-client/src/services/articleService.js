@@ -39,6 +39,14 @@ const ArticleService = {
     },
 
     /**
+     * Get all articles that the current user has blacklisted
+     */
+    getBlacklistedArticles: async () => {
+        const response = await apiClient.get('/users/me/blacklisted-articles');
+        return response.data;
+    },
+
+    /**
      * Track when a user reads an article to update preference score
      * @param {number} articleId - The ID of the article being read
      */
