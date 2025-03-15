@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/authService';
 import SettingsModal from './SettingsModal';
+import ProfileModal from './ProfileModal';
 
 const CategoryDropdown = ({ categories = [] }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -93,7 +94,7 @@ const CategoryDropdown = ({ categories = [] }) => {
   );
 };
 
-const UserDropdown = ({ username, onLogout, onOpenSettings }) => {
+const UserDropdown = ({ username, onLogout, onOpenSettings, onOpenProfile }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const toggleRef = useRef(null);
 
@@ -113,7 +114,7 @@ const UserDropdown = ({ username, onLogout, onOpenSettings }) => {
     <Dropdown nav isOpen={dropdownOpen} toggle={toggle}>
       <DropdownToggle nav caret innerRef={toggleRef}>{username || 'User'}</DropdownToggle>
       <DropdownMenu end>
-        <DropdownItem tag={Link} to="/profile" onClick={handleMenuClose}>Profile</DropdownItem>
+        <DropdownItem onClick={() => handleMenuClose(onOpenProfile)}>Profile</DropdownItem>
         <DropdownItem onClick={() => handleMenuClose(onOpenSettings)}>Settings</DropdownItem>
         <DropdownItem divider />
         <DropdownItem onClick={() => handleMenuClose(onLogout)}>
@@ -127,6 +128,7 @@ const UserDropdown = ({ username, onLogout, onOpenSettings }) => {
 function NavbarComponent() {
   const [isOpen, setIsOpen] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [topCategories, setTopCategories] = useState([]);
   const { currentUser, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -181,6 +183,21 @@ function NavbarComponent() {
     };
   }, [fetchTopCategories]); // Add fetchTopCategories to dependencies array
 
+  // Listen for the openProfileModal event (triggered when someone navigates to /profile)
+  useEffect(() => {
+    const handleOpenProfileModal = () => {
+      setShowProfileModal(true);
+    };
+
+    // Add event listener
+    window.addEventListener('openProfileModal', handleOpenProfileModal);
+
+    // Cleanup function to remove event listener
+    return () => {
+      window.removeEventListener('openProfileModal', handleOpenProfileModal);
+    };
+  }, []); // Empty dependency array ensures this only runs once at component mount
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -188,6 +205,10 @@ function NavbarComponent() {
 
   const toggleSettingsModal = () => {
     setShowSettingsModal(!showSettingsModal);
+  };
+
+  const toggleProfileModal = () => {
+    setShowProfileModal(!showProfileModal);
   };
 
   return (
@@ -219,6 +240,7 @@ function NavbarComponent() {
                 username={currentUser?.username}
                 onLogout={handleLogout}
                 onOpenSettings={toggleSettingsModal}
+                onOpenProfile={toggleProfileModal}
               />
             </Nav>
           )}
@@ -228,6 +250,11 @@ function NavbarComponent() {
       <SettingsModal
         isOpen={showSettingsModal}
         toggle={toggleSettingsModal}
+      />
+
+      <ProfileModal
+        isOpen={showProfileModal}
+        toggle={toggleProfileModal}
       />
     </>
   );

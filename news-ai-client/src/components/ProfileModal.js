@@ -19,7 +19,6 @@ import {
     CardTitle
 } from 'reactstrap';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import SettingsModal from './SettingsModal';
 import SourceService from '../services/sourceService';
 import UserPreferenceService from '../services/userPreferenceService';
@@ -29,7 +28,6 @@ import { FaBookmark, FaTrash, FaBan, FaNewspaper, FaShieldAlt } from 'react-icon
 
 function ProfileModal({ isOpen, toggle }) {
     const { currentUser, updateProfile } = useAuth();
-    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         username: '',
         email: '',
