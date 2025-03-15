@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Modal,
     ModalHeader,
@@ -27,6 +28,7 @@ import ArticleService from '../services/articleService';
 import { FaBookmark, FaTrash, FaBan, FaNewspaper, FaShieldAlt } from 'react-icons/fa';
 
 function ProfileModal({ isOpen, toggle }) {
+    const navigate = useNavigate();
     const { currentUser, updateProfile } = useAuth();
     const [formData, setFormData] = useState({
         username: '',
