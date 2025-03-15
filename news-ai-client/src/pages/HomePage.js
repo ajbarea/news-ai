@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Button, ButtonGroup, Card, CardText, Spinner } from 'reactstrap';
+import { FaSortAmountDown, FaSortAmountUp } from 'react-icons/fa';
 import ArticleCard from '../components/ArticleCard';
 import { apiClient } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
@@ -155,12 +156,14 @@ function HomePage() {
                 </Col>
                 <Col md="4" className="text-md-end mt-3 mt-md-0">
                     <Button
-                        color="info"
+                        color="primary"
                         outline
                         onClick={toggleSortOrder}
                         className="d-flex align-items-center ms-auto"
                     >
-                        <i className={`bi bi-sort-${sortOrder === 'newest' ? 'down' : 'up'} me-2`}></i>
+                        {sortOrder === 'newest'
+                            ? <FaSortAmountDown className="me-2" />
+                            : <FaSortAmountUp className="me-2" />}
                         Sort by: {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
                     </Button>
                 </Col>

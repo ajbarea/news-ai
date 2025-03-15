@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Card,
   CardBody,
-  CardImg,
   CardTitle,
   CardText,
   CardFooter,
@@ -123,7 +122,13 @@ const ArticleActions = ({ article, source, sourceId, category, categoryId }) => 
   return (
     <>
       {feedback.show && (
-        <div className="position-fixed top-0 end-0 p-3" style={{ zIndex: 1050 }}>
+        <div className="position-absolute start-50 translate-middle-x"
+          style={{
+            zIndex: 1050,
+            width: '250px',
+            top: '40px',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+          }}>
           <Alert color={feedback.type} toggle={() => setFeedback({ ...feedback, show: false })}>
             {feedback.message}
           </Alert>
@@ -132,9 +137,10 @@ const ArticleActions = ({ article, source, sourceId, category, categoryId }) => 
 
       <UncontrolledDropdown>
         <DropdownToggle
-          color="transparent"
+          color="light"
           size="sm"
-          className="bg-light bg-opacity-75 rounded-circle"
+          className="rounded-circle shadow-sm"
+          style={{ width: '32px', height: '32px', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           disabled={isLoading}
         >
           <FaEllipsisV />
@@ -379,14 +385,20 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
   return (
     <Card className="h-100 shadow-sm position-relative">
       {feedback.show && (
-        <div className="position-fixed top-0 end-0 p-3" style={{ zIndex: 1050 }}>
+        <div className="position-absolute start-50 translate-middle-x"
+          style={{
+            zIndex: 1050,
+            width: '250px',
+            top: '40px',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+          }}>
           <Alert color={feedback.type} toggle={() => setFeedback({ ...feedback, show: false })}>
             {feedback.message}
           </Alert>
         </div>
       )}
 
-      <div className="position-absolute top-0 end-0 mt-2 me-2 z-index-1">
+      <div className="position-absolute top-0 end-0 mt-2 me-2" style={{ zIndex: 10 }}>
         <ArticleActions
           article={article}
           source={sourceName}
@@ -396,12 +408,27 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
         />
       </div>
 
-      <div className="p-1 pt-1">
-        <CardImg
+      <div
+        className="rounded overflow-hidden"
+        style={{
+          paddingBottom: "56.25%", // 16:9 aspect ratio
+          position: "relative",
+          height: 0,
+          width: "100%"
+        }}
+      >
+        <img
           src={imageUrl}
           alt={article.title}
-          top
           className="rounded"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover"
+          }}
         />
       </div>
 

@@ -764,7 +764,7 @@ function ProfileModal({ isOpen, toggle }) {
                             <Button color="primary" onClick={handleStartEditing}>
                                 Edit Profile
                             </Button>
-                            <Button color="info" onClick={toggleSettings}>
+                            <Button color="danger" onClick={toggleSettings}>
                                 Account Settings
                             </Button>
                             <Button color="secondary" onClick={toggle}>

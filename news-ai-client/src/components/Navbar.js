@@ -21,7 +21,6 @@ const CategoryDropdown = ({ categories = [] }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const toggleRef = useRef(null);
   const navigate = useNavigate();
-  const location = useLocation();
 
   const toggle = () => setDropdownOpen(prevState => !prevState);
 
@@ -48,23 +47,20 @@ const CategoryDropdown = ({ categories = [] }) => {
   const handleAllCategoriesClick = (event) => {
     event.preventDefault();
 
-    // Check if we're already on the categories page
-    if (location.pathname === '/categories') {
-      // Force a full page refresh to clear any filters
-      window.location.href = '/news-ai/categories';
-    } else {
-      // Normal navigation if we're coming from another page
-      navigate('/categories');
-    }
+    // Navigate to categories page with replace:true (replaces current history entry)
+    navigate('/categories', { replace: true });
+
+    // Dispatch a custom event that Categories.js can listen for to reset its state
+    window.dispatchEvent(new CustomEvent('categoriesReset'));
 
     handleMenuClose();
   };
 
   // Fallback to default categories if none are provided or fewer than 3
   const displayCategories = categories.length > 0 ? categories : [
-    { id: 7, name: 'Politics' },
-    { id: 4, name: 'Sports' },
-    { id: 5, name: 'Entertainment' }
+    { id: 7, name: 'Politics', icon: '🏛️', color: 'secondary' },
+    { id: 4, name: 'Sports', icon: '🏈', color: 'danger' },
+    { id: 5, name: 'Entertainment', icon: '🎭', color: 'warning' }
   ];
 
   return (

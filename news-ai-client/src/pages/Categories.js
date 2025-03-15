@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Container, Row, Col, Card, CardBody, CardTitle, CardText, Input, Button, InputGroup, Spinner } from 'reactstrap';
 import { apiClient } from '../services/authService';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import ArticleService from '../services/articleService';
 import { useAuth } from '../context/AuthContext';
 
@@ -25,7 +25,7 @@ function Categories() {
   const [categoryArticlesError, setCategoryArticlesError] = useState(null);
 
   const [searchParams] = useSearchParams();
-
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -76,6 +76,19 @@ function Categories() {
     }, 15000); // 15 seconds fallback
 
     return () => clearTimeout(timeout);
+  }, []);
+
+  // Listen for reset events from navbar
+  useEffect(() => {
+    const handleReset = () => {
+      setSelectedCategory(null);
+      setCategoryArticles([]);
+      setSearchResults([]);
+      setLastSearchQuery('');
+    };
+
+    window.addEventListener('categoriesReset', handleReset);
+    return () => window.removeEventListener('categoriesReset', handleReset);
   }, []);
 
   // Handle category selection from URL query parameters
@@ -140,8 +153,14 @@ function Categories() {
 
   // Handler to go back to categories view
   const handleBackToCategories = () => {
+    // Reset all relevant states
     setSelectedCategory(null);
     setCategoryArticles([]);
+    setSearchResults([]);
+    setLastSearchQuery('');
+
+    // Update URL without query parameters - this preserves the SPA experience
+    navigate('/categories', { replace: true });
   };
 
   const getCardColorClass = (color) => {
