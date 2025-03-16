@@ -1,14 +1,15 @@
 """
 Database connection module.
 Establishes SQLAlchemy session management and connection pooling.
+Uses SQLAlchemy 2.0 style patterns with DeclarativeBase.
 """
 
 import os
 import time
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from typing import Generator
 from ..utils.logging_config import get_logger
 
 # Set up logging
@@ -17,30 +18,33 @@ logger = get_logger(__name__)
 # Load environment variables from .env file
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
-# Database connection setup
+# Database connection setup with secure logging (avoid exposing credentials)
 DATABASE_URL = os.environ.get("DEV_DATABASE_URL")
-# Log connection attempt without exposing full connection string details
-logger.info(
-    f"Initializing database connection to {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else 'database'}"
-)
+connection_info = DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "database"
+logger.info(f"Initializing database connection to {connection_info}")
 
 # Create engine with connection pooling for efficient connection management
-engine = create_engine(DATABASE_URL)
+# Using echo_pool=False to avoid leaking sensitive connection information in logs
+engine = create_engine(DATABASE_URL, echo_pool=False)
 
 # Session factory configured to match FastAPI's request lifecycle
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Base class for SQLAlchemy models
-Base = declarative_base()
+
+# Base class for SQLAlchemy models using 2.0 style
+class Base(DeclarativeBase):
+    pass
 
 
-def get_db():
+def get_db() -> Generator:
     """
     Dependency provider for database sessions.
 
     Yields a session per request and ensures proper cleanup through the
     context manager pattern, even if exceptions occur during request processing.
     This pattern prevents connection leaks in the connection pool.
+
+    Compatible with SQLAlchemy 2.0 session usage patterns.
 
     Yields:
         Session: SQLAlchemy database session

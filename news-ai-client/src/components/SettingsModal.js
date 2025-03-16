@@ -9,7 +9,6 @@ import {
     FormGroup,
     Label,
     Input,
-    Alert,
     Card,
     CardBody,
     Nav,
@@ -21,6 +20,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/authService';
+import AlertMessage from '../components/AlertMessage';
 
 function SettingsModal({ isOpen, toggle }) {
     // State for the different operations
@@ -146,11 +146,12 @@ function SettingsModal({ isOpen, toggle }) {
                 Account Settings
             </ModalHeader>
             <ModalBody>
-                {message && (
-                    <Alert color={message.type} className="mb-3">
-                        {message.text}
-                    </Alert>
-                )}
+                <AlertMessage
+                    message={message?.text}
+                    type={message?.type}
+                    autoDismiss={message?.type === 'success'}
+                    onDismiss={() => setMessage(null)}
+                />
 
                 <Nav tabs className="mb-4">
                     <NavItem>

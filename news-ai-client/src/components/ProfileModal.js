@@ -12,7 +12,6 @@ import {
     Input,
     Row,
     Col,
-    Alert,
     Badge,
     Spinner,
     Card,
@@ -26,6 +25,7 @@ import UserPreferenceService from '../services/userPreferenceService';
 import FavoriteArticleService from '../services/favoriteArticleService';
 import ArticleService from '../services/articleService';
 import { FaBookmark, FaTrash, FaBan, FaNewspaper, FaShieldAlt } from 'react-icons/fa';
+import AlertMessage from '../components/AlertMessage';
 
 function ProfileModal({ isOpen, toggle }) {
     const navigate = useNavigate();
@@ -662,11 +662,12 @@ function ProfileModal({ isOpen, toggle }) {
                     User Profile
                 </ModalHeader>
                 <ModalBody>
-                    {message && (
-                        <Alert color={message.type} className="mb-3">
-                            {message.text}
-                        </Alert>
-                    )}
+                    <AlertMessage
+                        message={message?.text}
+                        type={message?.type}
+                        autoDismiss={message?.type === 'success'}
+                        onDismiss={() => setMessage(null)}
+                    />
 
                     {!isEditing ? (
                         <div className="mb-4">

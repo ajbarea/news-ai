@@ -21,6 +21,7 @@ from contextlib import asynccontextmanager
 from .utils.logging_config import setup_logging, get_logger
 from .utils.log_helpers import log_create, log_update, log_delete, log_read
 from .middleware.request_logging import RequestLoggingMiddleware
+from sqlalchemy import select
 
 # Set up logging using the centralized configuration
 setup_logging()
@@ -155,7 +156,8 @@ def get_user_by_username(db: Session, username: str):
     Returns:
         User: The user record if found, None otherwise
     """
-    return db.query(models.User).filter(models.User.username == username).first()
+    stmt = select(models.User).where(models.User.username == username)
+    return db.execute(stmt).scalars().first()
 
 
 def authenticate_user(db: Session, username: str, password: str):
@@ -524,7 +526,10 @@ def get_categories(db: Session = Depends(get_db)):
     Returns:
         List[Category]: List of all categories
     """
-    categories = db.query(models.Category).all()
+    stmt = select(models.Category)
+    categories = db.execute(stmt).scalars().all()
+
+    logger.debug(f"Retrieved {len(categories)} categories")
     return categories
 
 
@@ -539,7 +544,10 @@ def get_sources(db: Session = Depends(get_db)):
     Returns:
         List[Source]: List of all sources
     """
-    sources = db.query(models.Source).all()
+    stmt = select(models.Source)
+    sources = db.execute(stmt).scalars().all()
+
+    logger.debug(f"Retrieved {len(sources)} sources")
     return sources
 
 
@@ -572,11 +580,12 @@ def get_articles(
     Returns:
         List[ArticleDetail]: List of articles with detailed information
     """
-    query = db.query(models.Article)
+    # Create a select statement for articles
+    stmt = select(models.Article)
 
     # Filter by category if specified
     if category_id:
-        query = query.filter(models.Article.category_id == category_id)
+        stmt = stmt.where(models.Article.category_id == category_id)
 
     # Filter out blacklisted sources and articles if user is authenticated
     if current_user:
@@ -585,16 +594,14 @@ def get_articles(
         )
 
         # Get all blacklisted category IDs for this user
-        blacklisted_categories_query = db.query(
-            models.UserPreference.category_id
-        ).filter(
+        blacklisted_categories_stmt = select(models.UserPreference.category_id).where(
             models.UserPreference.user_id == current_user.id,
             models.UserPreference.blacklisted.is_(True),
         )
 
         # Execute the query to get the actual IDs
         blacklisted_category_ids = [
-            row[0] for row in blacklisted_categories_query.all()
+            row[0] for row in db.execute(blacklisted_categories_stmt).all()
         ]
 
         if blacklisted_category_ids:
@@ -603,57 +610,61 @@ def get_articles(
             )
 
             # Get the names of blacklisted categories for logging
-            blacklisted_category_names = (
-                db.query(models.Category.name)
-                .filter(models.Category.id.in_(blacklisted_category_ids))
-                .all()
-            )
+            blacklisted_category_names = db.execute(
+                select(models.Category.name).where(
+                    models.Category.id.in_(blacklisted_category_ids)
+                )
+            ).all()
+
             logger.debug(
                 f"Blacklisted category names: {[name[0] for name in blacklisted_category_names]}"
             )
 
             # Exclude articles from categories in the blacklist
-            query = query.filter(
-                models.Article.category_id.notin_(blacklisted_category_ids)
+            stmt = stmt.where(
+                models.Article.category_id.not_in(blacklisted_category_ids)
             )
         else:
             logger.debug("No blacklisted categories found for this user")
 
         # Get all blacklisted source IDs for this user
-        blacklisted_sources_query = db.query(
-            models.UserSourceBlacklist.source_id
-        ).filter(models.UserSourceBlacklist.user_id == current_user.id)
+        blacklisted_sources_stmt = select(models.UserSourceBlacklist.source_id).where(
+            models.UserSourceBlacklist.user_id == current_user.id
+        )
 
         # Execute the query to get the actual IDs
-        blacklisted_source_ids = [row[0] for row in blacklisted_sources_query.all()]
+        blacklisted_source_ids = [
+            row[0] for row in db.execute(blacklisted_sources_stmt).all()
+        ]
 
         if blacklisted_source_ids:
             logger.debug(f"Filtering out blacklisted sources: {blacklisted_source_ids}")
 
             # Get the names of blacklisted sources for logging
-            blacklisted_source_names = (
-                db.query(models.Source.name)
-                .filter(models.Source.id.in_(blacklisted_source_ids))
-                .all()
-            )
+            blacklisted_source_names = db.execute(
+                select(models.Source.name).where(
+                    models.Source.id.in_(blacklisted_source_ids)
+                )
+            ).all()
+
             logger.debug(
                 f"Blacklisted source names: {[name[0] for name in blacklisted_source_names]}"
             )
 
             # Exclude articles from sources in the blacklist
-            query = query.filter(
-                models.Article.source_id.notin_(blacklisted_source_ids)
-            )
+            stmt = stmt.where(models.Article.source_id.not_in(blacklisted_source_ids))
         else:
             logger.debug("No blacklisted sources found for this user")
 
         # Get all blacklisted article IDs for this user
-        blacklisted_articles_query = db.query(
+        blacklisted_articles_stmt = select(
             models.UserArticleBlacklist.article_id
-        ).filter(models.UserArticleBlacklist.user_id == current_user.id)
+        ).where(models.UserArticleBlacklist.user_id == current_user.id)
 
         # Execute the query to get the actual IDs
-        blacklisted_article_ids = [row[0] for row in blacklisted_articles_query.all()]
+        blacklisted_article_ids = [
+            row[0] for row in db.execute(blacklisted_articles_stmt).all()
+        ]
 
         if blacklisted_article_ids:
             logger.debug(
@@ -661,19 +672,17 @@ def get_articles(
             )
 
             # Exclude individually blacklisted articles
-            query = query.filter(models.Article.id.notin_(blacklisted_article_ids))
+            stmt = stmt.where(models.Article.id.not_in(blacklisted_article_ids))
         else:
             logger.debug("No blacklisted articles found for this user")
     else:
         logger.debug("No authenticated user - showing all articles")
 
     # Apply pagination and ordering
-    articles = (
-        query.order_by(models.Article.published_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    stmt = stmt.order_by(models.Article.published_at.desc()).offset(skip).limit(limit)
+
+    # Execute the query
+    articles = db.execute(stmt).scalars().all()
 
     # Log information about returned articles
     logger.debug(f"Returning {len(articles)} articles")
@@ -698,9 +707,14 @@ def get_article(article_id: int, db: Session = Depends(get_db)):
     Raises:
         HTTPException: If article not found
     """
-    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    stmt = select(models.Article).where(models.Article.id == article_id)
+    article = db.execute(stmt).scalars().first()
+
     if article is None:
+        logger.info(f"Article not found: ID={article_id}")
         raise HTTPException(status_code=404, detail="Article not found")
+
+    logger.debug(f"Retrieved article: ID={article_id}, title={article.title}")
     return article
 
 
@@ -734,13 +748,16 @@ def get_user_preferences(
             status_code=403, detail="Not authorized to access these preferences"
         )
 
-    # Get preferences with eager loading of the category relationship
-    preferences = (
-        db.query(models.UserPreference)
-        .options(joinedload(models.UserPreference.category))
-        .filter(models.UserPreference.user_id == user_id)
-        .all()
+    # Get preferences with eager loading of the category relationship using joinedload
+    from sqlalchemy.orm import selectinload
+
+    stmt = (
+        select(models.UserPreference)
+        .options(selectinload(models.UserPreference.category))
+        .where(models.UserPreference.user_id == user_id)
     )
+
+    preferences = db.execute(stmt).scalars().all()
 
     # Add debugging to verify preferences and their blacklisted status
     logger.debug(f"Found {len(preferences)} preferences for user {user_id}")

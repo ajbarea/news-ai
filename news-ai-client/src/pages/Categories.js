@@ -4,6 +4,7 @@ import { apiClient } from '../services/authService';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import ArticleService from '../services/articleService';
 import { useAuth } from '../context/AuthContext';
+import AlertMessage from '../components/AlertMessage';
 
 function Categories() {
   const [categories, setCategories] = useState([]);
@@ -329,9 +330,10 @@ function Categories() {
   if (!categories || categories.length === 0) {
     return (
       <Container className="mt-5 pt-4">
-        <div className="alert alert-warning" role="alert">
-          No categories found. The database might be empty.
-        </div>
+        <AlertMessage
+          message="No categories found. The database might be empty."
+          type="warning"
+        />
         <Button color="primary" onClick={() => window.location.reload()}>
           Refresh
         </Button>

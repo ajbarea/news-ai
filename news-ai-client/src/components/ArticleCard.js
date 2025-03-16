@@ -14,8 +14,7 @@ import {
   DropdownToggle,
   DropdownMenu,
   DropdownItem,
-  UncontrolledTooltip,
-  Alert
+  UncontrolledTooltip
 } from 'reactstrap';
 import { FaBookmark, FaArrowRight, FaEllipsisV, FaBan, FaThumbsDown, FaMicrophone, FaSyncAlt, FaRegBookmark } from "react-icons/fa";
 import { useAuth } from '../context/AuthContext';
@@ -23,6 +22,7 @@ import SourceService from '../services/sourceService';
 import ArticleService from '../services/articleService';
 import UserPreferenceService from '../services/userPreferenceService';
 import FavoriteArticleService from '../services/favoriteArticleService';
+import AlertMessage from '../components/AlertMessage';
 
 const ArticleActions = ({ article, source, sourceId, category, categoryId }) => {
   const { isAuthenticated } = useAuth();
@@ -129,9 +129,13 @@ const ArticleActions = ({ article, source, sourceId, category, categoryId }) => 
             top: '40px',
             boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
           }}>
-          <Alert color={feedback.type} toggle={() => setFeedback({ ...feedback, show: false })}>
-            {feedback.message}
-          </Alert>
+          <AlertMessage
+            message={feedback.message}
+            type={feedback.type}
+            autoDismiss={true}
+            onDismiss={() => setFeedback({ ...feedback, show: false })}
+            style={{ marginBottom: 0 }}
+          />
         </div>
       )}
 
@@ -392,9 +396,13 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
             top: '40px',
             boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
           }}>
-          <Alert color={feedback.type} toggle={() => setFeedback({ ...feedback, show: false })}>
-            {feedback.message}
-          </Alert>
+          <AlertMessage
+            message={feedback.message}
+            type={feedback.type}
+            autoDismiss={true}
+            onDismiss={() => setFeedback({ ...feedback, show: false })}
+            style={{ marginBottom: 0 }}
+          />
         </div>
       )}
 

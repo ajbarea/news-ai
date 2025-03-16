@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import {
   Container, Row, Col, Form, FormGroup, Label, Input,
-  Button, Card, CardBody, CardHeader, Alert
+  Button, Card, CardBody, CardHeader
 } from 'reactstrap';
 import { useAuth } from '../context/AuthContext';
+import AlertMessage from '../components/AlertMessage';
 
 function Login() {
   const [username, setUsername] = useState('');
@@ -38,8 +39,13 @@ function Login() {
               <h3 className="mb-0">Login</h3>
             </CardHeader>
             <CardBody>
-              {error && <Alert color="danger">{error}</Alert>}
-              {successMessage && <Alert color="success">{successMessage}</Alert>}
+              <AlertMessage message={error} type="danger" />
+              <AlertMessage
+                message={successMessage}
+                type="success"
+                autoDismiss={true}
+                dismissTimeout={6000}
+              />
 
               <Form onSubmit={handleSubmit}>
                 <FormGroup>
