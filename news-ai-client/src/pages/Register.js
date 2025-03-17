@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Container, Row, Col, Form, FormGroup, Label, Input,
-  Button, Card, CardBody, CardHeader, Alert, FormFeedback
+  Button, Card, CardBody, CardHeader, FormFeedback
 } from 'reactstrap';
 import { useAuth } from '../context/AuthContext';
+import AlertMessage from '../components/AlertMessage';
 
 function Register() {
   const [username, setUsername] = useState('');
@@ -52,7 +53,7 @@ function Register() {
               <h3 className="mb-0">Register</h3>
             </CardHeader>
             <CardBody>
-              {error && <Alert color="danger">{error}</Alert>}
+              <AlertMessage message={error} type="danger" />
 
               <Form onSubmit={handleSubmit}>
                 <FormGroup>

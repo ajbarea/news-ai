@@ -1,8 +1,9 @@
 """
 API schema models module.
-This file defines Pydantic models used for data validation, serialization, 
-and documentation in the API endpoints. These schemas define the structure
-of request and response data for the News AI application.
+
+Defines Pydantic models for request/response validation, serialization,
+and OpenAPI documentation. These schemas establish the contract between
+the API and clients, ensuring data consistency and type safety.
 """
 
 from datetime import datetime
@@ -12,7 +13,10 @@ from pydantic import BaseModel
 
 class Token(BaseModel):
     """
-    Token schema used for authentication responses.
+    JWT authentication token response schema.
+
+    Returned when a user successfully authenticates,
+    containing the token for subsequent authenticated requests.
     """
 
     access_token: str
@@ -21,7 +25,10 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     """
-    Token payload schema used for JWT content.
+    JWT token payload schema.
+
+    Represents the decoded content of the JWT,
+    used for internal authentication processing.
     """
 
     username: str | None = None
@@ -29,18 +36,23 @@ class TokenData(BaseModel):
 
 class UserBase(BaseModel):
     """
-    Base User schema with common attributes.
-    Used as a basis for other user-related schemas.
+    User base schema with common non-sensitive attributes.
+
+    Contains fields shared across various user-related schemas,
+    excluding security-sensitive data like passwords.
     """
 
     username: str
     email: Optional[str] = None
+    name: Optional[str] = None
 
 
 class UserCreate(UserBase):
     """
-    Schema for creating new users, extends UserBase to include password.
-    Used for user registration endpoints.
+    User registration schema with password field.
+
+    Extends UserBase for user creation endpoints,
+    including the password which is never returned in responses.
     """
 
     password: str
@@ -48,8 +60,10 @@ class UserCreate(UserBase):
 
 class User(UserBase):
     """
-    Complete User schema for responses, extends UserBase with database fields.
-    Used when returning user information from API endpoints.
+    Complete User schema for responses.
+
+    Contains all user data returned by API endpoints,
+    but excludes security-sensitive fields like password_hash.
     """
 
     id: int
@@ -57,23 +71,41 @@ class User(UserBase):
     updated_at: datetime
 
     class Config:
-        from_attributes = True  # Allows model to be created from ORM objects
+        from_attributes = True  # Enables ORM model -> schema conversion
+
+
+class UserUpdate(BaseModel):
+    """
+    User profile update schema.
+
+    All fields are optional to support partial updates
+    without requiring all user information to be resent.
+    """
+
+    username: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None
 
 
 class CategoryBase(BaseModel):
     """
-    Base Category schema with common attributes.
+    Category base schema with common attributes.
+
+    Contains fields that define a content category
+    including display properties for UI consistency.
     """
 
     name: str
-    icon: Optional[str] = None
-    color: Optional[str] = None
-    article_count: int = 0
+    icon: Optional[str] = None  # Emoji or icon identifier
+    color: Optional[str] = None  # UI color theme identifier
+    article_count: int = 0  # Cache of article count
 
 
 class Category(CategoryBase):
     """
     Complete Category schema for responses.
+
+    Extends base schema with database identifier.
     """
 
     id: int
@@ -84,19 +116,23 @@ class Category(CategoryBase):
 
 class SourceBase(BaseModel):
     """
-    Base Source schema with common attributes.
-    Used for creating and updating news sources.
+    News source base schema.
+
+    Defines the properties of a content provider,
+    including subscription status and branding.
     """
 
     name: str
     url: str
-    subscription_required: bool = False
-    logo_url: Optional[str] = None
+    subscription_required: bool = False  # Whether content requires paid access
+    logo_url: Optional[str] = None  # Publisher logo for UI display
 
 
 class Source(SourceBase):
     """
-    Complete Source schema for responses.
+    Complete news source schema for responses.
+
+    Extends base schema with database identifier.
     """
 
     id: int
@@ -107,21 +143,25 @@ class Source(SourceBase):
 
 class ArticleBase(BaseModel):
     """
-    Base Article schema with common attributes.
-    Used for creating and updating articles.
+    Article base schema with common content attributes.
+
+    Contains the core fields that define a news article,
+    independent of category or source relationships.
     """
 
     title: str
-    url: str
+    url: str  # Link to full content
     published_at: datetime
-    image_url: Optional[str] = None
-    summary: Optional[str] = None
+    image_url: Optional[str] = None  # Featured image
+    summary: Optional[str] = None  # Article excerpt or summary
 
 
 class Article(ArticleBase):
     """
-    Standard Article schema for responses.
-    Includes database IDs for related entities.
+    Standard Article schema with relationship identifiers.
+
+    Extends base schema with database ID and foreign keys
+    for category and source relationships.
     """
 
     id: int
@@ -134,8 +174,10 @@ class Article(ArticleBase):
 
 class ArticleDetail(Article):
     """
-    Detailed Article schema that includes related entities.
-    Used for endpoints that need complete article information.
+    Expanded Article schema with nested relationship data.
+
+    Used for detailed article views that need complete
+    information about related categories and sources.
     """
 
     category: Category
@@ -163,6 +205,113 @@ class UserPreference(UserPreferenceBase):
 
     id: int
     user_id: int
+    category: Optional[Category] = None
+
+    class Config:
+        from_attributes = True
+
+
+class UserPreferenceCreate(UserPreferenceBase):
+    """
+    Schema for creating a new user preference.
+    """
+
+    pass
+
+
+class UserPreferenceUpdate(BaseModel):
+    """
+    Schema for updating an existing user preference.
+    All fields are optional since updates may be partial.
+    """
+
+    score: Optional[int] = None
+    blacklisted: Optional[bool] = None
+
+
+class UserSourceBlacklistBase(BaseModel):
+    """
+    Base schema for user source blacklist operations.
+    """
+
+    source_id: int
+
+
+class UserSourceBlacklistCreate(UserSourceBlacklistBase):
+    """
+    Schema for adding a source to a user's blacklist.
+    """
+
+    pass
+
+
+class UserSourceBlacklist(UserSourceBlacklistBase):
+    """
+    Complete schema for user source blacklist responses.
+    """
+
+    id: int
+    user_id: int
+    source: Optional[Source] = None
+
+    class Config:
+        from_attributes = True
+
+
+class UserArticleBlacklistBase(BaseModel):
+    """
+    Base schema for user article blacklist operations.
+    """
+
+    article_id: int
+
+
+class UserArticleBlacklistCreate(UserArticleBlacklistBase):
+    """
+    Schema for adding an article to a user's blacklist.
+    """
+
+    pass
+
+
+class UserArticleBlacklist(UserArticleBlacklistBase):
+    """
+    Complete schema for user article blacklist responses.
+    """
+
+    id: int
+    user_id: int
+    article: Optional[Article] = None
+
+    class Config:
+        from_attributes = True
+
+
+class UserFavoriteArticleBase(BaseModel):
+    """
+    Base schema for user favorite article operations.
+    """
+
+    article_id: int
+
+
+class UserFavoriteArticleCreate(UserFavoriteArticleBase):
+    """
+    Schema for adding an article to favorites.
+    """
+
+    pass
+
+
+class UserFavoriteArticle(UserFavoriteArticleBase):
+    """
+    Complete schema for user favorite article responses.
+    """
+
+    id: int
+    user_id: int
+    favorited_at: datetime
+    article: Optional[Article] = None
 
     class Config:
         from_attributes = True

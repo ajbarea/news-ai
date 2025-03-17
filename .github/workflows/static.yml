@@ -5,7 +5,7 @@ run-name: 📘 ${{ github.actor }} is deploying to GitHub Pages
 on:
   # Runs on pushes targeting the default branch
   push:
-    branches: ["aj-frontend", "main", "dev"]
+    branches: ["aj-frontend", "main"]
     # TODO: Update this to main branch
 
   # Allows you to run this workflow manually from the Actions tab

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8000'; // adjust to your FastAPI server address
+export const API_URL = 'http://localhost:8000';
 
 // Helper to manage tokens in localStorage
 const TokenService = {
@@ -64,12 +64,38 @@ const AuthService = {
     return apiClient.get('/users/me');
   },
 
+  updateProfile: async (userData) => {
+    return apiClient.put('/users/me', userData);
+  },
+
   logout: () => {
     TokenService.removeToken();
   },
 
   isAuthenticated: () => {
     return !!TokenService.getToken();
+  },
+
+  // Add token refresh functionality
+  refreshToken: async () => {
+    try {
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) throw new Error('No refresh token available');
+
+      const response = await axios.post(`${API_URL}/token/refresh`, {
+        refresh_token: refreshToken
+      });
+
+      if (response.data.access_token) {
+        TokenService.setToken(response.data.access_token);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      AuthService.logout();
+      return false;
+    }
   },
 };
 
