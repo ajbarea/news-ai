@@ -257,7 +257,6 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
   const [feedback, setFeedback] = useState({ show: false, message: '', type: 'success' });
   const feedbackTimeoutRef = useRef(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [audioError, setAudioError] = useState(null);
   const audioRef = useRef(null);
 
   const placeholderImage = `https://media.istockphoto.com/id/1369150014/vector/breaking-news-with-world-map-background-vector.jpg?s=612x612&w=0&k=20&c=9pR2-nDBhb7cOvvZU_VdgkMmPJXrBQ4rB1AkTXxRIKM=`;
@@ -405,7 +404,6 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
     
     try {
       setIsPlayingAudio(true);
-      setAudioError(null);
       
       const audioBlob = await AudioService.getArticleAudio(article.id);
       audioRef.current = AudioService.playAudio(audioBlob);
@@ -418,7 +416,7 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
       
     } catch (error) {
       console.error('Error playing audio:', error);
-      setAudioError('Failed to load audio. Please try again.');
+      showFeedbackWithTimeout('Failed to load audio. Please try again.', 'danger');
       setIsPlayingAudio(false);
     }
   };
@@ -427,7 +425,6 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
   const handleRegenerateAudio = async () => {
     try {
       setIsPlayingAudio(true);
-      setAudioError(null);
       
       await AudioService.generateArticleAudio(article.id);
       const audioBlob = await AudioService.getArticleAudio(article.id);
@@ -442,9 +439,8 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
       showFeedbackWithTimeout('Audio regenerated successfully', 'success');
     } catch (error) {
       console.error('Error regenerating audio:', error);
-      setAudioError('Failed to regenerate audio. Please try again.');
+      showFeedbackWithTimeout('Failed to regenerate audio. Please try again.', 'danger');
       setIsPlayingAudio(false);
-      showFeedbackWithTimeout('Failed to regenerate audio', 'danger');
     }
   };
 
