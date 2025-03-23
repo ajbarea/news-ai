@@ -25,15 +25,20 @@ from sqlalchemy import select
 from fastapi.responses import StreamingResponse
 from io import BytesIO
 from .services.tts_service import TTSService
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Set up logging using the centralized configuration
 setup_logging()
 logger = get_logger(__name__)
 
 # Security configuration
-SECRET_KEY = "4735ea57b2de730edcbb12a0e707f4cd9424378d2563611404e29b6a1c6b160e"
+SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 90
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
 # Password hashing and OAuth2 configuration
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -137,9 +142,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     """
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
