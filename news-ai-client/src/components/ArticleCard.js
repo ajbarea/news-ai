@@ -537,8 +537,7 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
                 id={`speak-${articleId}`}
                 color="light"
                 className="shadow-sm border border-light"
-                aria-label="Listen to article summary"
-
+                aria-label={isPlayingAudio ? "Stop audio" : "Listen to article summary"}
                 onClick={handleListenToSummary}
                 disabled={isLoading}
               >
@@ -549,13 +548,7 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
                 )}
               </Button>
               <UncontrolledTooltip placement="top" target={`speak-${articleId}`}>
-                {isPlayingAudio ? 'Stop audio' : 'Listen to summary'}
-
-                <FaMicrophone className="text-danger" />
-              </Button>
-              <UncontrolledTooltip placement="top" target={`speak-${articleId}`}>
-                Listen to summary
-
+                {isPlayingAudio ? "Stop audio" : "Listen to summary"}
               </UncontrolledTooltip>
 
               <Button
@@ -565,7 +558,6 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
                 aria-label="Regenerate summary"
                 onClick={handleRegenerateAudio}
                 disabled={isLoading || isPlayingAudio}
-
               >
                 <FaSyncAlt className="text-success" />
               </Button>
