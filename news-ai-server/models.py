@@ -23,6 +23,7 @@ from sqlalchemy import (
     select,
     LargeBinary,
     DateTime,
+
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database.database import Base
@@ -220,6 +221,7 @@ class Article(Base):
     favorited_by: Mapped[List["UserFavoriteArticle"]] = relationship(
         back_populates="article"
     )
+      
     audio: Mapped[Optional["ArticleAudio"]] = relationship(
         "ArticleAudio", uselist=False, back_populates="article", cascade="all, delete-orphan"
     )

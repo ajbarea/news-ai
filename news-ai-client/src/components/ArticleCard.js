@@ -16,6 +16,7 @@ import {
   DropdownItem,
   UncontrolledTooltip,
   Spinner
+
 } from 'reactstrap';
 import { FaBookmark, FaArrowRight, FaEllipsisV, FaBan, FaThumbsDown, FaMicrophone, FaSyncAlt, FaRegBookmark } from "react-icons/fa";
 import { useAuth } from '../context/AuthContext';
@@ -258,6 +259,7 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
   const feedbackTimeoutRef = useRef(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const audioRef = useRef(null);
+
 
   const placeholderImage = `https://media.istockphoto.com/id/1369150014/vector/breaking-news-with-world-map-background-vector.jpg?s=612x612&w=0&k=20&c=9pR2-nDBhb7cOvvZU_VdgkMmPJXrBQ4rB1AkTXxRIKM=`;
 
@@ -536,6 +538,7 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
                 color="light"
                 className="shadow-sm border border-light"
                 aria-label="Listen to article summary"
+
                 onClick={handleListenToSummary}
                 disabled={isLoading}
               >
@@ -547,6 +550,12 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
               </Button>
               <UncontrolledTooltip placement="top" target={`speak-${articleId}`}>
                 {isPlayingAudio ? 'Stop audio' : 'Listen to summary'}
+
+                <FaMicrophone className="text-danger" />
+              </Button>
+              <UncontrolledTooltip placement="top" target={`speak-${articleId}`}>
+                Listen to summary
+
               </UncontrolledTooltip>
 
               <Button
@@ -556,6 +565,7 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
                 aria-label="Regenerate summary"
                 onClick={handleRegenerateAudio}
                 disabled={isLoading || isPlayingAudio}
+
               >
                 <FaSyncAlt className="text-success" />
               </Button>

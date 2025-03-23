@@ -184,6 +184,7 @@ class ArticleDetail(Article):
     source: Source
     has_audio: bool = False  # Keep as a regular field, not a property
 
+
     class Config:
         from_attributes = True
 
@@ -316,8 +317,7 @@ class UserFavoriteArticle(UserFavoriteArticleBase):
 
     class Config:
         from_attributes = True
-
-
+        
 class ArticleAudioBase(BaseModel):
     language: str = "en"
     format: str = "mp3"

@@ -717,20 +717,23 @@ def get_article(article_id: int, db: Session = Depends(get_db)):
     Raises:
         HTTPException: If article not found
     """
+    
     # Use joinedload to load the audio relationship
     stmt = (
         select(models.Article)
         .options(joinedload(models.Article.audio))
         .where(models.Article.id == article_id)
     )
+
     article = db.execute(stmt).scalars().first()
 
     if article is None:
         logger.info(f"Article not found: ID={article_id}")
         raise HTTPException(status_code=404, detail="Article not found")
-        
+
     # Set has_audio flag
     article.has_audio = article.audio is not None
+
 
     logger.debug(f"Retrieved article: ID={article_id}, title={article.title}")
     return article
@@ -1390,7 +1393,6 @@ async def remove_favorite_article(
     db.commit()
 
     return None
-
 
 # TTS Endpoints
 @app.post(
