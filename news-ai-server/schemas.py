@@ -182,7 +182,7 @@ class ArticleDetail(Article):
 
     category: Category
     source: Source
-    has_audio: bool = False
+    has_audio: bool = False  # Keep as a regular field, not a property
 
     class Config:
         from_attributes = True

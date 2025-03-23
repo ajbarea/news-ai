@@ -24,7 +24,7 @@ from .middleware.request_logging import RequestLoggingMiddleware
 from sqlalchemy import select
 from fastapi.responses import StreamingResponse
 from io import BytesIO
-from services.tts_service import TTSService
+from .services.tts_service import TTSService
 
 # Set up logging using the centralized configuration
 setup_logging()
@@ -684,8 +684,15 @@ def get_articles(
     # Apply pagination and ordering
     stmt = stmt.order_by(models.Article.published_at.desc()).offset(skip).limit(limit)
 
+    # Add joinedload for audio to the statement
+    stmt = stmt.options(joinedload(models.Article.audio))
+
     # Execute the query
     articles = db.execute(stmt).scalars().all()
+    
+    # Set has_audio flag for each article
+    for article in articles:
+        article.has_audio = article.audio is not None
 
     # Log information about returned articles
     logger.debug(f"Returning {len(articles)} articles")
@@ -710,12 +717,20 @@ def get_article(article_id: int, db: Session = Depends(get_db)):
     Raises:
         HTTPException: If article not found
     """
-    stmt = select(models.Article).where(models.Article.id == article_id)
+    # Use joinedload to load the audio relationship
+    stmt = (
+        select(models.Article)
+        .options(joinedload(models.Article.audio))
+        .where(models.Article.id == article_id)
+    )
     article = db.execute(stmt).scalars().first()
 
     if article is None:
         logger.info(f"Article not found: ID={article_id}")
         raise HTTPException(status_code=404, detail="Article not found")
+        
+    # Set has_audio flag
+    article.has_audio = article.audio is not None
 
     logger.debug(f"Retrieved article: ID={article_id}, title={article.title}")
     return article
@@ -1387,10 +1402,10 @@ async def remove_favorite_article(
 )
 async def generate_article_audio(
     article_id: int,
-    language: str = Query("en", description="Language code for the TTS voice"),
-    force_regenerate: bool = Query(False, description="Force regeneration of existing audio"),
     current_user: Annotated[models.User, Depends(get_current_user)],
     db: Session = Depends(get_db),
+    language: str = Query("en", description="Language code for the TTS voice"),
+    force_regenerate: bool = Query(False, description="Force regeneration of existing audio"),
 ):
     # Create TTS service
     tts_service = TTSService(db)

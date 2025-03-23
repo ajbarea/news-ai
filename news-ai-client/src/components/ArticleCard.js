@@ -14,7 +14,8 @@ import {
   DropdownToggle,
   DropdownMenu,
   DropdownItem,
-  UncontrolledTooltip
+  UncontrolledTooltip,
+  Spinner
 } from 'reactstrap';
 import { FaBookmark, FaArrowRight, FaEllipsisV, FaBan, FaThumbsDown, FaMicrophone, FaSyncAlt, FaRegBookmark } from "react-icons/fa";
 import { useAuth } from '../context/AuthContext';
@@ -23,6 +24,7 @@ import ArticleService from '../services/articleService';
 import UserPreferenceService from '../services/userPreferenceService';
 import FavoriteArticleService from '../services/favoriteArticleService';
 import AlertMessage from '../components/AlertMessage';
+import AudioService from '../services/audioService';
 
 const ArticleActions = ({ article, source, sourceId, category, categoryId }) => {
   const { isAuthenticated } = useAuth();
@@ -254,6 +256,9 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
   const [isFavorited, setIsFavorited] = useState(false);
   const [feedback, setFeedback] = useState({ show: false, message: '', type: 'success' });
   const feedbackTimeoutRef = useRef(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [audioError, setAudioError] = useState(null);
+  const audioRef = useRef(null);
 
   const placeholderImage = `https://media.istockphoto.com/id/1369150014/vector/breaking-news-with-world-map-background-vector.jpg?s=612x612&w=0&k=20&c=9pR2-nDBhb7cOvvZU_VdgkMmPJXrBQ4rB1AkTXxRIKM=`;
 
@@ -386,6 +391,63 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
     }
   };
 
+  // Handle playing article audio
+  const handleListenToSummary = async () => {
+    if (isPlayingAudio) {
+      // If already playing, stop the audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+        setIsPlayingAudio(false);
+      }
+      return;
+    }
+    
+    try {
+      setIsPlayingAudio(true);
+      setAudioError(null);
+      
+      const audioBlob = await AudioService.getArticleAudio(article.id);
+      audioRef.current = AudioService.playAudio(audioBlob);
+      
+      // Update state when audio finishes playing
+      audioRef.current.addEventListener('ended', () => {
+        setIsPlayingAudio(false);
+        audioRef.current = null;
+      });
+      
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      setAudioError('Failed to load audio. Please try again.');
+      setIsPlayingAudio(false);
+    }
+  };
+
+  // Handle regenerating audio
+  const handleRegenerateAudio = async () => {
+    try {
+      setIsPlayingAudio(true);
+      setAudioError(null);
+      
+      await AudioService.generateArticleAudio(article.id);
+      const audioBlob = await AudioService.getArticleAudio(article.id);
+      audioRef.current = AudioService.playAudio(audioBlob);
+      
+      // Update state when audio finishes playing
+      audioRef.current.addEventListener('ended', () => {
+        setIsPlayingAudio(false);
+        audioRef.current = null;
+      });
+      
+      showFeedbackWithTimeout('Audio regenerated successfully', 'success');
+    } catch (error) {
+      console.error('Error regenerating audio:', error);
+      setAudioError('Failed to regenerate audio. Please try again.');
+      setIsPlayingAudio(false);
+      showFeedbackWithTimeout('Failed to regenerate audio', 'danger');
+    }
+  };
+
   return (
     <Card className="h-100 shadow-sm position-relative">
       {feedback.show && (
@@ -478,11 +540,17 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
                 color="light"
                 className="shadow-sm border border-light"
                 aria-label="Listen to article summary"
+                onClick={handleListenToSummary}
+                disabled={isLoading}
               >
-                <FaMicrophone className="text-danger" />
+                {isPlayingAudio ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <FaMicrophone className="text-danger" />
+                )}
               </Button>
               <UncontrolledTooltip placement="top" target={`speak-${articleId}`}>
-                Listen to summary
+                {isPlayingAudio ? 'Stop audio' : 'Listen to summary'}
               </UncontrolledTooltip>
 
               <Button
@@ -490,6 +558,8 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
                 color="light"
                 className="rounded-end shadow-sm border border-light"
                 aria-label="Regenerate summary"
+                onClick={handleRegenerateAudio}
+                disabled={isLoading || isPlayingAudio}
               >
                 <FaSyncAlt className="text-success" />
               </Button>

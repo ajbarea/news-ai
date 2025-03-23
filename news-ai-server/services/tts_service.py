@@ -13,10 +13,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 # Add the parent directory to the path so we can import modules from the parent directory
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import models and TTS utilities
-from news_ai_server import models
+from .. import models  # Changed from news_ai_server import models to relative import
 from tts.src.tts_utils import article_to_speech
 
 # Configure logging
