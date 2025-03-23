@@ -7,6 +7,8 @@ using various TTS engines, with gTTS (Google Text-to-Speech) as the default.
 
 import os
 import logging
+import json
+import datetime
 from typing import Optional, Union, Dict, Any
 from pathlib import Path
 
@@ -307,7 +309,138 @@ def chunk_and_convert(
         return []
 
 
+class ArticleAudioManager:
+    """
+    Manages the creation and storage of article audio files.
+    Ensures each article is converted to audio only once and stored for future use.
+    """
+    
+    def __init__(self, storage_dir=None, metadata_file=None):
+        """
+        Initialize the audio manager.
+        
+        Args:
+            storage_dir: Directory to store audio files (default: DEFAULT_AUDIO_DIR/articles)
+            metadata_file: File to store metadata about audio files (default: storage_dir/metadata.json)
+        """
+        self.storage_dir = storage_dir or os.path.join(DEFAULT_AUDIO_DIR, "articles")
+        Path(self.storage_dir).mkdir(parents=True, exist_ok=True)
+        
+        self.metadata_file = metadata_file or os.path.join(self.storage_dir, "metadata.json")
+        self.metadata = self._load_metadata()
+    
+    def _load_metadata(self):
+        """Load metadata from file or initialize if not exists"""
+        if os.path.exists(self.metadata_file):
+            try:
+                with open(self.metadata_file, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.error(f"Failed to load metadata: {e}")
+                return {}
+        return {}
+    
+    def _save_metadata(self):
+        """Save metadata to file"""
+        try:
+            with open(self.metadata_file, 'w') as f:
+                json.dump(self.metadata, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to save metadata: {e}")
+    
+    def get_audio_path(self, article_id):
+        """
+        Get the path to the audio file for an article.
+        
+        Args:
+            article_id: Unique identifier for the article
+            
+        Returns:
+            str: Path to the audio file if it exists, None otherwise
+        """
+        if str(article_id) in self.metadata:
+            audio_path = self.metadata[str(article_id)]["audio_path"]
+            if os.path.exists(audio_path):
+                return audio_path
+        return None
+    
+    def article_to_audio(self, article_id, article, language="en", slow=False, engine="google"):
+        """
+        Convert an article to audio if it doesn't already exist.
+        
+        Args:
+            article_id: Unique identifier for the article
+            article: Article content (string or dictionary)
+            language: Language code (default: 'en' for English)
+            slow: Whether to speak slowly (default: False)
+            engine: TTS engine to use (default: 'google')
+            
+        Returns:
+            str: Path to the audio file
+        """
+        # Check if we already have an audio file for this article
+        existing_path = self.get_audio_path(article_id)
+        if existing_path:
+            logger.info(f"Using existing audio file for article {article_id}")
+            return existing_path
+        
+        # Generate a filename based on the article ID
+        safe_id = str(article_id).replace('/', '_').replace('\\', '_')
+        filename = f"{safe_id}.mp3"
+        output_path = os.path.join(self.storage_dir, filename)
+        
+        # Convert the article to speech
+        success = article_to_speech(
+            article=article,
+            output_file=output_path,
+            language=language,
+            slow=slow,
+            engine=engine,
+            play_sound=False
+        )
+        
+        if success:
+            # Store metadata about this audio file
+            title = article.get("title", "") if isinstance(article, dict) else ""
+            self.metadata[str(article_id)] = {
+                "audio_path": output_path,
+                "created": datetime.datetime.now().isoformat(),
+                "article_title": title,
+                "language": language
+            }
+            self._save_metadata()
+            return output_path
+        
+        return None
+    
+    def list_available_articles(self):
+        """
+        List all articles that have audio files available.
+        
+        Returns:
+            list: List of article IDs with available audio
+        """
+        return [id for id in self.metadata if os.path.exists(self.metadata[id]["audio_path"])]
+
+
 if __name__ == "__main__":
     # Example usage
     sample_text = "This is a test of the text-to-speech utility."
     text_to_speech(sample_text, play_sound=True)
+    
+    # Example of using the ArticleAudioManager
+    audio_manager = ArticleAudioManager()
+    
+    # Example article
+    article1 = {
+        "title": "Test Article",
+        "content": "This is a test article for the text-to-speech system."
+    }
+    
+    # Convert article to audio (first time - creates the file)
+    audio_path1 = audio_manager.article_to_audio("test-article-1", article1)
+    print(f"Audio file created at: {audio_path1}")
+    
+    # Try converting the same article again (should use existing file)
+    audio_path2 = audio_manager.article_to_audio("test-article-1", article1)
+    print(f"Using existing audio file: {audio_path2}")

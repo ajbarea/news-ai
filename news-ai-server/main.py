@@ -9,7 +9,7 @@ from .utils import patches  # noqa: F401
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, List, Optional
 import jwt
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
@@ -22,6 +22,9 @@ from .utils.logging_config import setup_logging, get_logger
 from .utils.log_helpers import log_create, log_update, log_delete, log_read
 from .middleware.request_logging import RequestLoggingMiddleware
 from sqlalchemy import select
+from fastapi.responses import StreamingResponse
+from io import BytesIO
+from services.tts_service import TTSService
 
 # Set up logging using the centralized configuration
 setup_logging()
@@ -1372,3 +1375,89 @@ async def remove_favorite_article(
     db.commit()
 
     return None
+
+
+# TTS Endpoints
+@app.post(
+    "/articles/{article_id}/audio",
+    response_model=schemas.ArticleAudio,
+    tags=["Articles"],
+    summary="Generate audio for an article",
+    description="Generate text-to-speech audio for an article and store it in the database"
+)
+async def generate_article_audio(
+    article_id: int,
+    language: str = Query("en", description="Language code for the TTS voice"),
+    force_regenerate: bool = Query(False, description="Force regeneration of existing audio"),
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    # Create TTS service
+    tts_service = TTSService(db)
+    
+    # Generate audio
+    audio = tts_service.generate_article_audio(
+        article_id=article_id,
+        language=language,
+        force_regenerate=force_regenerate
+    )
+    
+    if not audio:
+        raise HTTPException(status_code=500, detail="Failed to generate audio for article")
+    
+    return audio
+
+@app.get(
+    "/articles/{article_id}/audio",
+    tags=["Articles"],
+    summary="Get audio for an article",
+    description="Stream the audio file for an article"
+)
+async def get_article_audio(
+    article_id: int,
+    db: Session = Depends(get_db),
+):
+    # Create TTS service
+    tts_service = TTSService(db)
+    
+    # Get audio
+    audio = tts_service.get_article_audio(article_id)
+    
+    if not audio:
+        # Generate audio if it doesn't exist
+        audio = tts_service.generate_article_audio(article_id)
+        if not audio:
+            raise HTTPException(status_code=404, detail="Audio not found for article and could not be generated")
+    
+    # Return the audio file as a streaming response
+    return StreamingResponse(
+        BytesIO(audio.audio_data),
+        media_type=f"audio/{audio.format}",
+        headers={"Content-Disposition": f"attachment; filename=article_{article_id}.{audio.format}"}
+    )
+
+@app.delete(
+    "/articles/{article_id}/audio",
+    tags=["Articles"],
+    summary="Delete audio for an article",
+    description="Delete the audio file for an article from the database"
+)
+async def delete_article_audio(
+    article_id: int,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    # Make sure the user has admin privileges
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    # Create TTS service
+    tts_service = TTSService(db)
+    
+    # Delete audio
+    success = tts_service.delete_article_audio(article_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Audio not found for article")
+    
+    return {"detail": "Audio successfully deleted"}
