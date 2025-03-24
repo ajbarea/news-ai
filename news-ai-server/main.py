@@ -9,7 +9,7 @@ from .utils import patches  # noqa: F401
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, List, Optional
 import jwt
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
@@ -22,15 +22,23 @@ from .utils.logging_config import setup_logging, get_logger
 from .utils.log_helpers import log_create, log_update, log_delete, log_read
 from .middleware.request_logging import RequestLoggingMiddleware
 from sqlalchemy import select
+from fastapi.responses import StreamingResponse
+from io import BytesIO
+from .services.tts_service import TTSService
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Set up logging using the centralized configuration
 setup_logging()
 logger = get_logger(__name__)
 
 # Security configuration
-SECRET_KEY = "4735ea57b2de730edcbb12a0e707f4cd9424378d2563611404e29b6a1c6b160e"
+SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 90
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
 # Password hashing and OAuth2 configuration
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -134,9 +142,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     """
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -681,8 +689,15 @@ def get_articles(
     # Apply pagination and ordering
     stmt = stmt.order_by(models.Article.published_at.desc()).offset(skip).limit(limit)
 
+    # Add joinedload for audio to the statement
+    stmt = stmt.options(joinedload(models.Article.audio))
+
     # Execute the query
     articles = db.execute(stmt).scalars().all()
+    
+    # Set has_audio flag for each article
+    for article in articles:
+        article.has_audio = article.audio is not None
 
     # Log information about returned articles
     logger.debug(f"Returning {len(articles)} articles")
@@ -707,12 +722,23 @@ def get_article(article_id: int, db: Session = Depends(get_db)):
     Raises:
         HTTPException: If article not found
     """
-    stmt = select(models.Article).where(models.Article.id == article_id)
+    
+    # Use joinedload to load the audio relationship
+    stmt = (
+        select(models.Article)
+        .options(joinedload(models.Article.audio))
+        .where(models.Article.id == article_id)
+    )
+
     article = db.execute(stmt).scalars().first()
 
     if article is None:
         logger.info(f"Article not found: ID={article_id}")
         raise HTTPException(status_code=404, detail="Article not found")
+
+    # Set has_audio flag
+    article.has_audio = article.audio is not None
+
 
     logger.debug(f"Retrieved article: ID={article_id}, title={article.title}")
     return article
@@ -1372,3 +1398,88 @@ async def remove_favorite_article(
     db.commit()
 
     return None
+
+# TTS Endpoints
+@app.post(
+    "/articles/{article_id}/audio",
+    response_model=schemas.ArticleAudio,
+    tags=["Articles"],
+    summary="Generate audio for an article",
+    description="Generate text-to-speech audio for an article and store it in the database"
+)
+async def generate_article_audio(
+    article_id: int,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+    language: str = Query("en", description="Language code for the TTS voice"),
+    force_regenerate: bool = Query(False, description="Force regeneration of existing audio"),
+):
+    # Create TTS service
+    tts_service = TTSService(db)
+    
+    # Generate audio
+    audio = tts_service.generate_article_audio(
+        article_id=article_id,
+        language=language,
+        force_regenerate=force_regenerate
+    )
+    
+    if not audio:
+        raise HTTPException(status_code=500, detail="Failed to generate audio for article")
+    
+    return audio
+
+@app.get(
+    "/articles/{article_id}/audio",
+    tags=["Articles"],
+    summary="Get audio for an article",
+    description="Stream the audio file for an article"
+)
+async def get_article_audio(
+    article_id: int,
+    db: Session = Depends(get_db),
+):
+    # Create TTS service
+    tts_service = TTSService(db)
+    
+    # Get audio
+    audio = tts_service.get_article_audio(article_id)
+    
+    if not audio:
+        # Generate audio if it doesn't exist
+        audio = tts_service.generate_article_audio(article_id)
+        if not audio:
+            raise HTTPException(status_code=404, detail="Audio not found for article and could not be generated")
+    
+    # Return the audio file as a streaming response
+    return StreamingResponse(
+        BytesIO(audio.audio_data),
+        media_type=f"audio/{audio.format}",
+        headers={"Content-Disposition": f"attachment; filename=article_{article_id}.{audio.format}"}
+    )
+
+@app.delete(
+    "/articles/{article_id}/audio",
+    tags=["Articles"],
+    summary="Delete audio for an article",
+    description="Delete the audio file for an article from the database"
+)
+async def delete_article_audio(
+    article_id: int,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    # Make sure the user has admin privileges
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    # Create TTS service
+    tts_service = TTSService(db)
+    
+    # Delete audio
+    success = tts_service.delete_article_audio(article_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Audio not found for article")
+    
+    return {"detail": "Audio successfully deleted"}

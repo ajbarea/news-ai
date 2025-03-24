@@ -3,3 +3,4 @@ pyjwt==2.10.1 # JSON Web Tokens for authentication
 passlib[bcrypt]==1.7.4 # Password hashing
 sqlalchemy==2.0.38 # SQLAlchemy
 psycopg2==2.9.10 # PostgreSQL database adapter
+python-dotenv==1.0.0

@@ -21,6 +21,9 @@ from sqlalchemy import (
     func,
     event,
     select,
+    LargeBinary,
+    DateTime,
+
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database.database import Base
@@ -218,6 +221,25 @@ class Article(Base):
     favorited_by: Mapped[List["UserFavoriteArticle"]] = relationship(
         back_populates="article"
     )
+      
+    audio: Mapped[Optional["ArticleAudio"]] = relationship(
+        "ArticleAudio", uselist=False, back_populates="article", cascade="all, delete-orphan"
+    )
+
+
+class ArticleAudio(Base):
+    __tablename__ = "article_audio"
+
+    id = mapped_column(Integer, primary_key=True, index=True)
+    article_id = mapped_column(Integer, ForeignKey("articles.id", ondelete="CASCADE"), nullable=False, unique=True)
+    audio_data = mapped_column(LargeBinary, nullable=False)  # Stores the actual MP3 binary data
+    format = mapped_column(String, default="mp3")
+    language = mapped_column(String, default="en")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationship back to the article
+    article = relationship("Article", back_populates="audio")
 
 
 class UserArticleBlacklist(Base):

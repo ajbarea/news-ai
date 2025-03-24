@@ -1,0 +1,14 @@
+{
+  "article-1": {
+    "audio_path": "./tts/audios\\articles\\article-1.mp3",
+    "created": "2025-03-22T19:04:08.994672",
+    "article_title": "Breaking News: AI Makes Significant Advancements",
+    "language": "en"
+  },
+  "article-2": {
+    "audio_path": "./tts/audios\\articles\\article-2.mp3",
+    "created": "2025-03-22T19:04:09.868600",
+    "article_title": "Climate Change Report Released",
+    "language": "en"
+  }
+}
