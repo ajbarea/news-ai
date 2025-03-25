@@ -8,6 +8,7 @@ starting point for development and testing environments.
 
 from datetime import datetime
 from .. import models
+from summarizer import get_summary
 
 
 def get_password_hash(password):
@@ -144,7 +145,7 @@ def get_articles(db_categories, db_sources):
             url="https://abcnews.go.com/Business/egg-prices-predicted-rise-411-2025-usda/story?id=119182317",
             published_at=datetime.strptime("2025-02-25 14:30:00", "%Y-%m-%d %H:%M:%S"),
             image_url="https://i.abcnewsfe.com/a/3dc24bd6-fdbe-4980-b0fe-eacc6aa802e6/eggs-prices-gty-lv-250225_1740518210123_hpMain_16x9.jpg?w=992",
-            summary="The cost of eggs is expected to rise by over 41% in 2025, according to a new report from the U.S. Department of Agriculture. The increase is driven by a combination of factors, including rising feed costs and increased demand.",
+            summary=get_summary("https://abcnews.go.com/Business/egg-prices-predicted-rise-411-2025-usda/story?id=119182317"),
         ),
         models.Article(  # ABC News - Health
             title="Unvaccinated New Mexico resident tests positive for measles after dying",
