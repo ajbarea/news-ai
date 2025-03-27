@@ -10,19 +10,16 @@ def fetch_webpage(url):
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
-        return soup.get_text()
+
+        paragraphs = soup.find_all("p")
+        page_content = " ".join([paragraph.get_text() for paragraph in paragraphs])
+        return page_content
     except requests.exceptions.RequestException as e:
         return f"Error fetching the webpage: {e}"
 
 def generate_summary(content):
-    instructions = """I am going to provide you a link to a news article. 
-    I want you to summarize the article in 150 words or less. 
-    The summary should be simple, clear, and focus on key points.
-    Do not add extra text before or after the summary. Do not provide any more information than what I have requested,
-    including any requests for feedback.\n\n"""
-    
-    prompt = tokenizer.encode(instructions + content, return_tensors="pt", max_length=1024, truncation=True)
-    summary_ids = model.generate(prompt, max_length=200, min_length=150, length_penalty=1.2, num_beams=4, early_stopping=True)
+    input = tokenizer.encode(content, return_tensors="pt", max_length=1024, truncation=True)
+    summary_ids = model.generate(input, max_length=150, min_length=100, length_penalty=1.2, num_beams=4, early_stopping=True)
     summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
     return summary
 
