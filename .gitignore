@@ -169,3 +169,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+**/project.md
+**/project.sh
+
+# Dev scripts not needed for release
+scripts/

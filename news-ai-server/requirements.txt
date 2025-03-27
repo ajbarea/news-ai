@@ -1,0 +1,15 @@
+fastapi[standard]==0.115.11 # FastAPI
+pyjwt==2.10.1 # JSON Web Tokens for authentication
+passlib[bcrypt]==1.7.4 # Password hashing
+sqlalchemy==2.0.38 # SQLAlchemy
+psycopg2==2.9.10 # PostgreSQL database adapter
+python-dotenv==1.0.0
+requests==2.32.3 # Web requests
+beautifulsoup4==4.13.3 # Web scraper
+transformers==4.49.0 # Model for summarizer
+--extra-index-url https://download.pytorch.org/whl/cpu # PyTorch cpu index for summarizer
+
+# PyTorch Packages
+torch
+torchvision
+torchaudio
