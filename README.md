@@ -60,3 +60,5 @@ python -m pip install --upgrade pip # Upgrade pip
 pip install -r requirements.txt # Install dependencies
 fastapi dev main.py # Launch Python FastAPI server
 ```
+
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ajbarea_news-ai&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ajbarea_news-ai)
