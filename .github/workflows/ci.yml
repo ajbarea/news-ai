@@ -62,7 +62,6 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ env.CODECOV_TOKEN }}
-          directory: ./news-ai-client/src/services
 
       - name: 📊 Build summary
         if: always()
