@@ -2,12 +2,11 @@ import unittest
 from unittest.mock import patch
 import sys
 import os
+import requests
 
-# Adjust path to import from your project
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "news-ai-server")))
 from database.summarizer import fetch_webpage, generate_summary
 
-# Path to the saved mock HTML file
 mock_file_path = os.path.join(os.path.dirname(__file__), "mock_data", "test_article.html")
 
 def get_mock_page_content():
@@ -67,6 +66,42 @@ class TestSummarizer(unittest.TestCase):
         page_content = fetch_webpage("any_url")
         summary = generate_summary(page_content)
         self.assertLessEqual(len(summary.split()), 150)
+
+    def test_empty_content_summary(self):
+        """
+        Tests that the summarizer properly handles empty page content requests and doesn't crash.
+        """
+        summary = generate_summary("")
+        self.assertTrue(isinstance(summary, str))
+        self.assertGreaterEqual(len(summary), 0) 
+
+    def test_long_input_truncation(self):
+        """
+        Tests that the summarizer properly handles very large content requests.
+        """
+        long_content = "This is filler text. " * 2000
+        summary = generate_summary(long_content)
+        self.assertIsInstance(summary, str)
+        self.assertLessEqual(len(summary.split()), 150)
+
+    @patch("requests.get")
+    def test_fetch_webpage_no_paragraphs(self, mock_get):
+        """
+        Tests that the summarizer properly handles page content without paragraphs.
+        """
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.text = "<html><body><div>No paragraphs here!</div></body></html>"
+
+        content = fetch_webpage("http://fakeurl.com")
+        self.assertEqual(content.strip(), "")
+
+    @patch("requests.get", side_effect=requests.exceptions.Timeout)
+    def test_fetch_webpage_timeout(self):
+        """
+        Tests that the summarizer can handle page timeouts
+        """
+        content = fetch_webpage("http://slow-site.com")
+        self.assertIn("Error fetching the webpage", content)
 
 if __name__ == '__main__':
     unittest.main()
