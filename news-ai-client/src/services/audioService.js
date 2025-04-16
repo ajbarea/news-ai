@@ -27,6 +27,16 @@ const AudioService = {
     },
 
     /**
+     * Cancel audio generation for an article
+     * @param {number} articleId - The ID of the article
+     * @returns {Promise<Object>} - The response data
+     */
+    cancelAudioGeneration: async (articleId) => {
+        const response = await apiClient.post(`/articles/${articleId}/audio/cancel`);
+        return response.data;
+    },
+
+    /**
      * Play audio from a blob
      * @param {Blob} audioBlob - The audio blob to play
      * @returns {HTMLAudioElement} - The audio element that's playing
@@ -34,6 +44,9 @@ const AudioService = {
     playAudio: (audioBlob) => {
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
+        
+        // Explicitly set the src property
+        audio.src = audioUrl;
         
         // Clean up object URL when done playing
         audio.addEventListener('ended', () => {
