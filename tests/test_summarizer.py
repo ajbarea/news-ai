@@ -92,7 +92,7 @@ class TestSummarizer(unittest.TestCase):
         mock_get.return_value.status_code = 200
         mock_get.return_value.text = "<html><body><div>No paragraphs here!</div></body></html>"
 
-        content = fetch_webpage("http://fakeurl.com")
+        content = fetch_webpage("https://fakeurl.com")
         self.assertEqual(content.strip(), "")
 
     @patch("requests.get", side_effect=requests.exceptions.Timeout)
@@ -100,7 +100,7 @@ class TestSummarizer(unittest.TestCase):
         """
         Tests that the summarizer can handle page timeouts
         """
-        content = fetch_webpage("http://slow-site.com")
+        content = fetch_webpage("https://slow-site.com")
         self.assertIn("Error fetching the webpage", content)
 
 if __name__ == '__main__':

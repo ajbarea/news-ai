@@ -1,6 +1,6 @@
 # News-AI
 
-[![codecov](https://codecov.io/github/ajbarea/news-ai/graph/badge.svg?token=68JmKbo4jp)](https://codecov.io/github/ajbarea/news-ai) [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![codecov](https://codecov.io/github/ajbarea/news-ai/graph/badge.svg?token=68JmKbo4jp)](https://codecov.io/github/ajbarea/news-ai) [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ajbarea_news-ai&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ajbarea_news-ai)
 
 ## Introduction
 
@@ -60,5 +60,3 @@ python -m pip install --upgrade pip # Upgrade pip
 pip install -r requirements.txt # Install dependencies
 fastapi dev main.py # Launch Python FastAPI server
 ```
-
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ajbarea_news-ai&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ajbarea_news-ai)
