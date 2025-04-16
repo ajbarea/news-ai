@@ -55,13 +55,16 @@ jobs:
         working-directory: ./news-ai-client
 
       - name: 🧪 Run tests
-        run: npm test -- --coverage
+        run: npm test -- --coverage --collectCoverageFrom="src/services/**" --setupFilesAfterEnv=./src/setupTestsConsole.js
         working-directory: ./news-ai-client
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ env.CODECOV_TOKEN }}
+          directory: ./news-ai-client/coverage
+          flags: services
+          name: services-coverage
 
       - name: 📊 Build summary
         if: always()
