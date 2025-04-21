@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Container, Row, Col, Button, ButtonGroup, Card, CardText, Spinner, Input, InputGroup, CardTitle, CardBody } from 'reactstrap';
+import { Container, Row, Col, Button, ButtonGroup, Card, CardText, Spinner, Input, InputGroup, CardBody } from 'reactstrap';
 import { FaSortAmountDown, FaSortAmountUp, FaSearch } from 'react-icons/fa';
 import ArticleCard from '../components/ArticleCard';
 import { apiClient } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import FavoriteArticleService from '../services/favoriteArticleService';
-import ArticleService from '../services/articleService';
+import UserPreferenceService from '../services/userPreferenceService';
 
 function HomePage() {
     const [articles, setArticles] = useState([]);
     const [categories, setCategories] = useState(['All']);
+    const [blockedCategories, setBlockedCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeCategory, setActiveCategory] = useState('All');
@@ -77,6 +78,32 @@ function HomePage() {
         fetchFavorites();
     }, [isAuthenticated]);
 
+    // Fetch user's blocked categories if authenticated
+    useEffect(() => {
+        const fetchBlockedCategories = async () => {
+            if (!isAuthenticated()) {
+                setBlockedCategories([]);
+                return;
+            }
+
+            try {
+                const blacklistedCategories = await UserPreferenceService.getBlacklistedCategories();
+                // Extract just the category names from the preferences data
+                const blockedCategoryNames = blacklistedCategories.map(pref => {
+                    // The API might return category objects or just the category name
+                    return pref.category?.name || pref.name || '';
+                }).filter(name => name !== '');
+                
+                setBlockedCategories(blockedCategoryNames);
+            } catch (err) {
+                console.error('Error fetching blocked categories:', err);
+                setBlockedCategories([]);
+            }
+        };
+
+        fetchBlockedCategories();
+    }, [isAuthenticated]);
+
     // Handle favorite change from ArticleCard
     const handleFavoriteChange = (articleId, isFavorite) => {
         if (isFavorite) {
@@ -103,15 +130,35 @@ function HomePage() {
         url: article.url
     });
 
-    // Filter articles based on selected category, then sort by publication date
+    // Format search results to match the same structure as articles
+    const formattedSearchResults = searchResults.map(formatArticle);
+    
+    // Filter search results to exclude blocked categories
+    const filteredFormattedSearchResults = formattedSearchResults.filter(article => 
+        !blockedCategories.includes(article.category)
+    );
+
+    // Filter regular articles based on selected category
     const filteredArticles = activeCategory === 'All'
         ? articles.map(formatArticle)
         : articles
             .filter(article => article.category.name === activeCategory)
             .map(formatArticle);
 
+    // Filter search results based on selected category
+    const filteredSearchResults = activeCategory === 'All'
+        ? filteredFormattedSearchResults
+        : filteredFormattedSearchResults.filter(article => article.category === activeCategory);
+
     // Sort the filtered articles by publication date
     const sortedArticles = [...filteredArticles].sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+
+    // Sort the filtered search results by publication date
+    const sortedSearchResults = [...filteredSearchResults].sort((a, b) => {
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
         return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
@@ -129,6 +176,11 @@ function HomePage() {
     const toggleSortOrder = () => {
         setSortOrder(prevOrder => prevOrder === 'newest' ? 'oldest' : 'newest');
     };
+
+    // Filter out blocked categories
+    const filteredCategories = categories.filter(category => 
+        category === 'All' || !blockedCategories.includes(category)
+    );
 
     // Reset visible articles when changing category or sort order
     useEffect(() => {
@@ -203,19 +255,6 @@ function HomePage() {
         }
     };
 
-    // Handle article read tracking
-    const handleReadMore = async (article) => {
-        if (isAuthenticated()) {
-            try {
-                await ArticleService.trackArticleRead(article.id);
-            } catch (error) {
-                console.error('Failed to track article read:', error);
-            }
-        }
-        // Open article URL in a new tab
-        window.open(article.url, '_blank');
-    };
-
     return (
         <Container className="mt-5 mb-4">
             <Row className="mb-4">
@@ -276,17 +315,66 @@ function HomePage() {
                             </Button>
                         </Col>
                     </Row>
-                    <Row>
-                        {searchResults.map((article) => (
-                            <Col key={article.id} md="6" lg="4" className="mb-4">
-                                <ArticleCard
-                                    article={article}
-                                    favoriteArticles={favoriteArticles}
-                                    onFavoriteChange={handleFavoriteChange}
-                                />
-                            </Col>
-                        ))}
+
+                    {/* Category Filter for Search Results */}
+                    <Row className="mb-4">
+                        <Col md="8">
+                            <ButtonGroup className="flex-wrap">
+                                {filteredCategories.map(category => (
+                                    <Button
+                                        key={category}
+                                        color={activeCategory === category ? "primary" : "secondary"}
+                                        outline={activeCategory !== category}
+                                        onClick={() => setActiveCategory(category)}
+                                        className="me-2 mb-2"
+                                    >
+                                        {category}
+                                    </Button>
+                                ))}
+                            </ButtonGroup>
+                        </Col>
+                        <Col md="4" className="text-md-end mt-3 mt-md-0">
+                            <Button
+                                color="primary"
+                                outline
+                                onClick={toggleSortOrder}
+                                className="d-flex align-items-center ms-auto"
+                            >
+                                {sortOrder === 'newest'
+                                    ? <FaSortAmountDown className="me-2" />
+                                    : <FaSortAmountUp className="me-2" />}
+                                Sort by: {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+                            </Button>
+                        </Col>
                     </Row>
+
+                    {filteredSearchResults.length > 0 ? (
+                        <Row>
+                            {sortedSearchResults.map((article) => (
+                                <Col key={article.id} md="6" lg="4" className="mb-4">
+                                    <ArticleCard
+                                        article={article}
+                                        favoriteArticles={favoriteArticles}
+                                        onFavoriteChange={handleFavoriteChange}
+                                    />
+                                </Col>
+                            ))}
+                        </Row>
+                    ) : (
+                        <Row className="py-5">
+                            <Col className="text-center">
+                                <Card body>
+                                    <CardText className="mb-3">No articles found in the {activeCategory} category.</CardText>
+                                    <Button
+                                        color="primary"
+                                        onClick={() => setActiveCategory('All')}
+                                    >
+                                        View All Search Results
+                                    </Button>
+                                </Card>
+                            </Col>
+                        </Row>
+                    )}
                 </>
             )}
             
@@ -309,7 +397,7 @@ function HomePage() {
                     <Row className="mb-4">
                         <Col md="8">
                             <ButtonGroup className="flex-wrap">
-                                {categories.map(category => (
+                                {filteredCategories.map(category => (
                                     <Button
                                         key={category}
                                         color={activeCategory === category ? "primary" : "secondary"}
