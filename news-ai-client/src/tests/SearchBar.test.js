@@ -4,42 +4,45 @@ import '@testing-library/jest-dom';
 import SearchBar from '../components/SearchBar';
 
 // Mock props and functions
-const mockOnSearch = jest.fn();
+const mockProps = {
+    searchQuery: '',
+    setSearchQuery: jest.fn(),
+    handleSearch: jest.fn(),
+    handleKeyPress: jest.fn(),
+    isSearching: false,
+    searchError: null
+};
 
 describe('SearchBar Component', () => {
     beforeEach(() => {
-        mockOnSearch.mockReset();
-        render(<SearchBar onSearch={mockOnSearch} />);
+        jest.clearAllMocks();
+        render(<SearchBar {...mockProps} />);
     });
 
     test('renders search input field', () => {
-        const searchInput = screen.getByPlaceholderText('Search for news...');
+        const searchInput = screen.getByPlaceholderText('Search for any news topic...');
         expect(searchInput).toBeInTheDocument();
     });
 
     test('allows typing in the search field', () => {
-        const searchInput = screen.getByPlaceholderText('Search for news...');
+        const searchInput = screen.getByPlaceholderText('Search for any news topic...');
         fireEvent.change(searchInput, { target: { value: 'technology' } });
-        expect(searchInput.value).toBe('technology');
+        expect(mockProps.setSearchQuery).toHaveBeenCalled();
     });
 
     test('calls onSearch function when form is submitted', () => {
-        const searchInput = screen.getByPlaceholderText('Search for news...');
-        const searchForm = searchInput.closest('form');
-        
-        fireEvent.change(searchInput, { target: { value: 'climate change' } });
-        fireEvent.submit(searchForm);
-        
-        expect(mockOnSearch).toHaveBeenCalledWith('climate change');
+        const searchButton = screen.getByRole('button');
+        fireEvent.click(searchButton);
+        expect(mockProps.handleSearch).toHaveBeenCalled();
     });
 
     test('calls onSearch when search button is clicked', () => {
-        const searchInput = screen.getByPlaceholderText('Search for news...');
+        const searchInput = screen.getByPlaceholderText('Search for any news topic...');
         const searchButton = screen.getByRole('button', { name: /search/i });
         
         fireEvent.change(searchInput, { target: { value: 'sports' } });
         fireEvent.click(searchButton);
         
-        expect(mockOnSearch).toHaveBeenCalledWith('sports');
+        expect(mockProps.handleSearch).toHaveBeenCalled();
     });
 });

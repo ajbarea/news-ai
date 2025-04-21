@@ -267,8 +267,9 @@ describe('HomePage Component', () => {
     // Click on the empty category
     fireEvent.click(emptyCategoryButton);
     
-    // Check that the no articles message is displayed
-    expect(screen.getByText('No articles found in this category.')).toBeInTheDocument();
+    // Check that the no articles message is displayed - using a partial text match
+    expect(screen.getByText(/No articles found/i)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`in the ${emptyCategory} category`, 'i'))).toBeInTheDocument();
   });
 
   test('renders favorite articles for authenticated user', async () => {

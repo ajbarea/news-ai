@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Container, Row, Col, Button, ButtonGroup, Card, CardText, Spinner, Input, InputGroup, CardBody } from 'reactstrap';
-import { FaSortAmountDown, FaSortAmountUp, FaSearch } from 'react-icons/fa';
-import ArticleCard from '../components/ArticleCard';
+import { Container, Row, Col, Button, Card, CardText, Spinner } from 'reactstrap';
+import { FaSortAmountDown, FaSortAmountUp } from 'react-icons/fa';
 import { apiClient } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import FavoriteArticleService from '../services/favoriteArticleService';
 import UserPreferenceService from '../services/userPreferenceService';
+import SearchBar from '../components/SearchBar';
+import CategoryFilter from '../components/CategoryFilter';
+import ArticleGrid from '../components/ArticleGrid';
+import { performSearch, formatArticle, sortArticlesByDate } from '../utils/searchUtils';
 
 function HomePage() {
     const [articles, setArticles] = useState([]);
@@ -14,8 +17,8 @@ function HomePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeCategory, setActiveCategory] = useState('All');
-    const [visibleArticles, setVisibleArticles] = useState(9); // Initially show 9 articles
-    const articlesPerPage = 6; // Load 6 more articles on each click
+    const [visibleArticles, setVisibleArticles] = useState(9);
+    const articlesPerPage = 6;
     const [favoriteArticles, setFavoriteArticles] = useState([]);
     const [loadingFavorites, setLoadingFavorites] = useState(false);
     const { isAuthenticated } = useAuth();
@@ -118,19 +121,8 @@ function HomePage() {
         }
     };
 
-    // Format articles for display
-    const formatArticle = (article) => ({
-        id: article.id,
-        title: article.title,
-        summary: article.summary || 'No summary available for this article.',
-        source: article.source,
-        category: article.category.name,
-        date: article.published_at,
-        imageUrl: article.image_url,
-        url: article.url
-    });
-
-    // Format search results to match the same structure as articles
+    // Format and filter articles
+    const formattedArticles = articles.map(formatArticle);
     const formattedSearchResults = searchResults.map(formatArticle);
     
     // Filter search results to exclude blocked categories
@@ -140,29 +132,17 @@ function HomePage() {
 
     // Filter regular articles based on selected category
     const filteredArticles = activeCategory === 'All'
-        ? articles.map(formatArticle)
-        : articles
-            .filter(article => article.category.name === activeCategory)
-            .map(formatArticle);
+        ? formattedArticles
+        : formattedArticles.filter(article => article.category === activeCategory);
 
     // Filter search results based on selected category
     const filteredSearchResults = activeCategory === 'All'
         ? filteredFormattedSearchResults
         : filteredFormattedSearchResults.filter(article => article.category === activeCategory);
 
-    // Sort the filtered articles by publication date
-    const sortedArticles = [...filteredArticles].sort((a, b) => {
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
-    });
-
-    // Sort the filtered search results by publication date
-    const sortedSearchResults = [...filteredSearchResults].sort((a, b) => {
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
-    });
+    // Sort articles by date
+    const sortedArticles = sortArticlesByDate(filteredArticles, sortOrder);
+    const sortedSearchResults = sortArticlesByDate(filteredSearchResults, sortOrder);
 
     // Get only the articles that should be visible
     const currentArticles = sortedArticles.slice(0, visibleArticles);
@@ -189,64 +169,29 @@ function HomePage() {
 
     // Clean up timeout on unmount
     useEffect(() => {
+        // Store the current timeout ID in a variable inside the effect
+        const timeoutId = noResultsTimeoutRef.current;
+        
         return () => {
-            if (noResultsTimeoutRef.current) {
-                clearTimeout(noResultsTimeoutRef.current);
+            // Use the variable in cleanup, not the ref directly
+            if (timeoutId) {
+                clearTimeout(timeoutId);
             }
         };
     }, []);
     
-    // Handle search functionality
-    const handleSearch = async () => {
-        if (!searchQuery.trim() || searchQuery.trim().length < 2) {
-            setSearchError('Please enter at least 2 characters to search');
-            return;
-        }
-
-        // Clear any existing timeout
-        if (noResultsTimeoutRef.current) {
-            clearTimeout(noResultsTimeoutRef.current);
-            noResultsTimeoutRef.current = null;
-        }
-
-        try {
-            setIsSearching(true);
-            setSearchError(null);
-            setSearchResults([]);
-            setLastSearchQuery(searchQuery.trim());
-            setShowNoResultsMessage(false);
-
-            const response = await apiClient.get('/search', {
-                params: { query: searchQuery.trim() },
-                timeout: 10000
-            });
-
-            setSearchResults(response.data);
-            setIsSearching(false);
-            setSearchQuery('');
-
-            // If no results were found, show the temporary message
-            if (response.data.length === 0) {
-                setShowNoResultsMessage(true);
-                // Hide the message after 5 seconds
-                noResultsTimeoutRef.current = setTimeout(() => {
-                    setShowNoResultsMessage(false);
-                }, 5000);
-            }
-        } catch (err) {
-            console.error('Error searching articles:', err);
-            if (err.code === 'ECONNABORTED') {
-                setSearchError('Search request timed out. Please try again.');
-            } else if (err.response) {
-                setSearchError(`Server error: ${err.response.status} - ${err.response.data.detail || err.response.statusText}`);
-            } else if (err.request) {
-                setSearchError('No response from server. Please check if the API server is running.');
-            } else {
-                setSearchError('An unexpected error occurred. Please try again later.');
-            }
-            setIsSearching(false);
-            setSearchQuery('');
-        }
+    // Handle search functionality using our utility function
+    const handleSearch = () => {
+        performSearch(
+            searchQuery,
+            setIsSearching,
+            setSearchError,
+            setSearchResults,
+            setShowNoResultsMessage,
+            setLastSearchQuery,
+            setSearchQuery,
+            noResultsTimeoutRef
+        );
     };
 
     const handleKeyPress = (e) => {
@@ -254,6 +199,38 @@ function HomePage() {
             handleSearch();
         }
     };
+
+    // Render sort button
+    const renderSortButton = () => (
+        <Button
+            color="primary"
+            outline
+            onClick={toggleSortOrder}
+            className="d-flex align-items-center ms-auto"
+        >
+            {sortOrder === 'newest'
+                ? <FaSortAmountDown className="me-2" />
+                : <FaSortAmountUp className="me-2" />}
+            Sort by: {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+        </Button>
+    );
+
+    // Render no results message
+    const renderNoArticlesMessage = (category) => (
+        <Row className="py-5">
+            <Col className="text-center">
+                <Card body>
+                    <CardText className="mb-3">No articles found{category !== 'All' ? ` in the ${category} category` : ''}.</CardText>
+                    <Button
+                        color="primary"
+                        onClick={() => setActiveCategory('All')}
+                    >
+                        View All Articles
+                    </Button>
+                </Card>
+            </Col>
+        </Row>
+    );
 
     return (
         <Container className="mt-5 mb-4">
@@ -270,29 +247,14 @@ function HomePage() {
             {/* Search Bar */}
             <Row className="mb-4">
                 <Col>
-                    <Card className="border-primary shadow-sm">
-                        <CardBody>
-                            <InputGroup>
-                                <Input
-                                    type="text"
-                                    placeholder="Search for any news topic..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onKeyPress={handleKeyPress}
-                                    disabled={isSearching}
-                                    className="border-end-0"
-                                />
-                                <Button
-                                    color="primary"
-                                    onClick={handleSearch}
-                                    disabled={isSearching}
-                                >
-                                    {isSearching ? <><Spinner size="sm" /> Searching...</> : <><FaSearch className="me-1" /> Search</>}
-                                </Button>
-                            </InputGroup>
-                            {searchError && <div className="text-danger mt-2">{searchError}</div>}
-                        </CardBody>
-                    </Card>
+                    <SearchBar
+                        searchQuery={searchQuery}
+                        setSearchQuery={setSearchQuery}
+                        handleSearch={handleSearch}
+                        handleKeyPress={handleKeyPress}
+                        isSearching={isSearching}
+                        searchError={searchError}
+                    />
                 </Col>
             </Row>
             
@@ -319,61 +281,25 @@ function HomePage() {
                     {/* Category Filter for Search Results */}
                     <Row className="mb-4">
                         <Col md="8">
-                            <ButtonGroup className="flex-wrap">
-                                {filteredCategories.map(category => (
-                                    <Button
-                                        key={category}
-                                        color={activeCategory === category ? "primary" : "secondary"}
-                                        outline={activeCategory !== category}
-                                        onClick={() => setActiveCategory(category)}
-                                        className="me-2 mb-2"
-                                    >
-                                        {category}
-                                    </Button>
-                                ))}
-                            </ButtonGroup>
+                            <CategoryFilter 
+                                categories={filteredCategories}
+                                activeCategory={activeCategory}
+                                setActiveCategory={setActiveCategory}
+                            />
                         </Col>
                         <Col md="4" className="text-md-end mt-3 mt-md-0">
-                            <Button
-                                color="primary"
-                                outline
-                                onClick={toggleSortOrder}
-                                className="d-flex align-items-center ms-auto"
-                            >
-                                {sortOrder === 'newest'
-                                    ? <FaSortAmountDown className="me-2" />
-                                    : <FaSortAmountUp className="me-2" />}
-                                Sort by: {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
-                            </Button>
+                            {renderSortButton()}
                         </Col>
                     </Row>
 
                     {filteredSearchResults.length > 0 ? (
-                        <Row>
-                            {sortedSearchResults.map((article) => (
-                                <Col key={article.id} md="6" lg="4" className="mb-4">
-                                    <ArticleCard
-                                        article={article}
-                                        favoriteArticles={favoriteArticles}
-                                        onFavoriteChange={handleFavoriteChange}
-                                    />
-                                </Col>
-                            ))}
-                        </Row>
+                        <ArticleGrid 
+                            articles={sortedSearchResults}
+                            favoriteArticles={favoriteArticles}
+                            onFavoriteChange={handleFavoriteChange}
+                        />
                     ) : (
-                        <Row className="py-5">
-                            <Col className="text-center">
-                                <Card body>
-                                    <CardText className="mb-3">No articles found in the {activeCategory} category.</CardText>
-                                    <Button
-                                        color="primary"
-                                        onClick={() => setActiveCategory('All')}
-                                    >
-                                        View All Search Results
-                                    </Button>
-                                </Card>
-                            </Col>
-                        </Row>
+                        renderNoArticlesMessage(activeCategory)
                     )}
                 </>
             )}
@@ -396,32 +322,14 @@ function HomePage() {
                     {/* Category Filter */}
                     <Row className="mb-4">
                         <Col md="8">
-                            <ButtonGroup className="flex-wrap">
-                                {filteredCategories.map(category => (
-                                    <Button
-                                        key={category}
-                                        color={activeCategory === category ? "primary" : "secondary"}
-                                        outline={activeCategory !== category}
-                                        onClick={() => setActiveCategory(category)}
-                                        className="me-2 mb-2"
-                                    >
-                                        {category}
-                                    </Button>
-                                ))}
-                            </ButtonGroup>
+                            <CategoryFilter 
+                                categories={filteredCategories}
+                                activeCategory={activeCategory}
+                                setActiveCategory={setActiveCategory}
+                            />
                         </Col>
                         <Col md="4" className="text-md-end mt-3 mt-md-0">
-                            <Button
-                                color="primary"
-                                outline
-                                onClick={toggleSortOrder}
-                                className="d-flex align-items-center ms-auto"
-                            >
-                                {sortOrder === 'newest'
-                                    ? <FaSortAmountDown className="me-2" />
-                                    : <FaSortAmountUp className="me-2" />}
-                                Sort by: {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
-                            </Button>
+                            {renderSortButton()}
                         </Col>
                     </Row>
 
@@ -452,51 +360,21 @@ function HomePage() {
                             </Col>
                         </Row>
                     ) : loadingFavorites ? (
-                        <Row>
-                            {currentArticles.map(article => (
-                                <Col key={article.id} md="6" lg="4" className="mb-4">
-                                    <div className="position-relative">
-                                        <ArticleCard
-                                            article={article}
-                                            favoriteArticles={[]}
-                                            onFavoriteChange={handleFavoriteChange}
-                                        />
-                                        {/* Small loading indicator for bookmark status */}
-                                        <div className="position-absolute top-0 end-0 mt-3 me-3">
-                                            <Spinner size="sm" color="primary" />
-                                        </div>
-                                    </div>
-                                </Col>
-                            ))}
-                        </Row>
+                        <ArticleGrid 
+                            articles={currentArticles}
+                            favoriteArticles={[]} // Empty while loading
+                            onFavoriteChange={handleFavoriteChange}
+                        />
                     ) : (
-                        <Row>
-                            {currentArticles.map(article => (
-                                <Col key={article.id} md="6" lg="4" className="mb-4">
-                                    <ArticleCard
-                                        article={article}
-                                        favoriteArticles={favoriteArticles}
-                                        onFavoriteChange={handleFavoriteChange}
-                                    />
-                                </Col>
-                            ))}
-                        </Row>
+                        <ArticleGrid 
+                            articles={currentArticles}
+                            favoriteArticles={favoriteArticles}
+                            onFavoriteChange={handleFavoriteChange}
+                        />
                     )}
 
                     {!loading && !error && filteredArticles.length === 0 && (
-                        <Row className="py-5">
-                            <Col className="text-center">
-                                <Card body>
-                                    <CardText className="mb-3">No articles found in this category.</CardText>
-                                    <Button
-                                        color="primary"
-                                        onClick={() => setActiveCategory('All')}
-                                    >
-                                        View All Articles
-                                    </Button>
-                                </Card>
-                            </Col>
-                        </Row>
+                        renderNoArticlesMessage(activeCategory)
                     )}
 
                     {/* Load More button - only show if there are more articles to load */}
