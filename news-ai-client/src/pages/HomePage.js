@@ -279,40 +279,11 @@ function HomePage() {
                     <Row>
                         {searchResults.map((article) => (
                             <Col key={article.id} md="6" lg="4" className="mb-4">
-                                <Card className="h-100">
-                                    <Row className="g-0">
-                                        {article.image_url && (
-                                            <Col md="4">
-                                                <img
-                                                    src={article.image_url}
-                                                    alt={article.title}
-                                                    className="img-fluid rounded-start h-100 object-fit-cover"
-                                                    style={{ maxHeight: "200px" }}
-                                                />
-                                            </Col>
-                                        )}
-                                        <Col md={article.image_url ? "8" : "12"}>
-                                            <CardBody>
-                                                <CardTitle tag="h5">{article.title}</CardTitle>
-                                                <CardText className="text-muted small">
-                                                    <span className="badge bg-secondary me-2">{article.category.name}</span>
-                                                    From <strong>{article.source.name}</strong> • {new Date(article.published_at).toLocaleDateString()}
-                                                    {article.source.subscription_required &&
-                                                        <span className="ms-1 badge bg-warning text-dark">Subscription</span>
-                                                    }
-                                                </CardText>
-                                                <CardText className="text-truncate">{article.summary}</CardText>
-                                                <Button
-                                                    color="primary"
-                                                    onClick={() => handleReadMore(article)}
-                                                    size="sm"
-                                                >
-                                                    Read More
-                                                </Button>
-                                            </CardBody>
-                                        </Col>
-                                    </Row>
-                                </Card>
+                                <ArticleCard
+                                    article={article}
+                                    favoriteArticles={favoriteArticles}
+                                    onFavoriteChange={handleFavoriteChange}
+                                />
                             </Col>
                         ))}
                     </Row>
