@@ -140,12 +140,11 @@ function HomePage() {
         ? filteredFormattedSearchResults
         : filteredFormattedSearchResults.filter(article => article.category === activeCategory);
 
-    // Sort articles by date
-    const sortedArticles = sortArticlesByDate(filteredArticles, sortOrder);
+    // Sort searched articles by date
     const sortedSearchResults = sortArticlesByDate(filteredSearchResults, sortOrder);
 
-    // Get only the articles that should be visible
-    const currentArticles = sortedArticles.slice(0, visibleArticles);
+    // Get only the articles that should be visible in recommended ordering
+    const currentArticles = filteredArticles.slice(0, visibleArticles);
 
     // Load more articles function
     const loadMoreArticles = () => {
