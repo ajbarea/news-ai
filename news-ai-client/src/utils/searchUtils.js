@@ -89,7 +89,8 @@ export const formatArticle = (article) => ({
   category: article.category?.name,
   date: article.published_at,
   imageUrl: article.image_url,
-  url: article.url
+  url: article.url,
+  subscription_required: article.subscription_required
 });
 
 /**
