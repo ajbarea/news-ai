@@ -308,7 +308,7 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
     if (typeof article.source === 'object') {
       sourceName = article.source.name || "Unknown";
       sourceLogo = article.source.logo_url || null;
-      subscriptionRequired = article.source.subscription_required || false;
+      subscriptionRequired = article.subscription_required || false;
       sourceId = article.source.id || null;
     } else {
       sourceName = article.source;

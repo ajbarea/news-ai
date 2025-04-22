@@ -281,8 +281,8 @@ function Categories() {
                 <CardText className="text-muted small">
                   <span className="badge bg-secondary me-2">{article.category.name}</span>
                   From <strong>{article.source.name}</strong> • {new Date(article.published_at).toLocaleDateString()}
-                  {article.source.subscription_required &&
-                    <span className="ms-1 badge bg-warning text-dark">Subscription</span>
+                  {article.subscription_required &&
+                    <span className="ms-1 badge bg-warning text-dark">Paywall</span>
                   }
                 </CardText>
                 <CardText className="text-truncate">{article.summary}</CardText>
