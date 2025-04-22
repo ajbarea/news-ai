@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Container, Row, Col, Card, CardBody, CardTitle, CardText, Input, Button, InputGroup, Spinner } from 'reactstrap';
+import { FaArrowLeft } from 'react-icons/fa';
 import { apiClient } from '../services/authService';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import ArticleService from '../services/articleService';
@@ -419,15 +420,23 @@ function Categories() {
       {/* Display search results if we have any */}
       {searchResults.length > 0 && (
         <>
-          <Row className="mb-4">
+          <Row className="mb-4 align-items-center">
             <Col>
-              <h2>Search Results</h2>
-              <p>Found {searchResults.length} articles matching "{lastSearchQuery}"</p>
-              <Button color="secondary" className="mb-4" onClick={() => {
-                setSearchResults([]);
-                setLastSearchQuery('');
-              }}>
-                Back to Categories
+              <h2 className="mb-2">Search Results</h2>
+              <p className="mb-0">Found {searchResults.length} articles matching "{lastSearchQuery}"</p>
+            </Col>
+            <Col xs="auto">
+              <Button 
+                color="secondary"
+                title="Back to Categories"
+                className="d-flex align-items-center justify-content-center"
+                style={{ width: '38px', height: '38px', padding: '0' }}
+                onClick={() => {
+                  setSearchResults([]);
+                  setLastSearchQuery('');
+                }}
+              >
+                <FaArrowLeft />
               </Button>
             </Col>
           </Row>

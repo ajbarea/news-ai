@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Container, Row, Col, Button, Card, CardText, Spinner } from 'reactstrap';
-import { FaSortAmountDown, FaSortAmountUp } from 'react-icons/fa';
+import { FaSortAmountDown, FaSortAmountUp, FaHome } from 'react-icons/fa';
 import { apiClient } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import FavoriteArticleService from '../services/favoriteArticleService';
@@ -260,19 +260,23 @@ function HomePage() {
             {/* Search Results Display */}
             {searchResults.length > 0 && (
                 <>
-                    <Row className="mb-4">
+                    <Row className="mb-4 align-items-center">
                         <Col>
-                            <h2>Search Results</h2>
-                            <p>Found {searchResults.length} articles matching "{lastSearchQuery}"</p>
+                            <h2 className="mb-2">Search Results</h2>
+                            <p className="mb-0">Found {searchResults.length} articles matching "{lastSearchQuery}"</p>
+                        </Col>
+                        <Col xs="auto">
                             <Button 
-                                color="secondary" 
-                                className="mb-4" 
+                                color="secondary"
+                                title="Back to Main Feed"
+                                className="d-flex align-items-center justify-content-center"
+                                style={{ width: '38px', height: '38px', padding: '0' }}
                                 onClick={() => {
                                     setSearchResults([]);
                                     setLastSearchQuery('');
                                 }}
                             >
-                                Back to Main Feed
+                                <FaHome />
                             </Button>
                         </Col>
                     </Row>
