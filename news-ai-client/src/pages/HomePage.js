@@ -1,23 +1,37 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Button, ButtonGroup, Card, CardText, Spinner } from 'reactstrap';
-import { FaSortAmountDown, FaSortAmountUp } from 'react-icons/fa';
-import ArticleCard from '../components/ArticleCard';
+import React, { useState, useEffect, useRef } from 'react';
+import { Container, Row, Col, Button, Card, CardText, Spinner } from 'reactstrap';
+import { FaSortAmountDown, FaSortAmountUp, FaHome } from 'react-icons/fa';
 import { apiClient } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import FavoriteArticleService from '../services/favoriteArticleService';
+import UserPreferenceService from '../services/userPreferenceService';
+import SearchBar from '../components/SearchBar';
+import CategoryFilter from '../components/CategoryFilter';
+import ArticleGrid from '../components/ArticleGrid';
+import { performSearch, formatArticle, sortArticlesByDate } from '../utils/searchUtils';
 
 function HomePage() {
     const [articles, setArticles] = useState([]);
     const [categories, setCategories] = useState(['All']);
+    const [blockedCategories, setBlockedCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeCategory, setActiveCategory] = useState('All');
-    const [visibleArticles, setVisibleArticles] = useState(9); // Initially show 9 articles
-    const articlesPerPage = 6; // Load 6 more articles on each click
+    const [visibleArticles, setVisibleArticles] = useState(9);
+    const articlesPerPage = 6;
     const [favoriteArticles, setFavoriteArticles] = useState([]);
     const [loadingFavorites, setLoadingFavorites] = useState(false);
     const { isAuthenticated } = useAuth();
     const [sortOrder, setSortOrder] = useState('newest');
+    
+    // Search functionality states
+    const [searchQuery, setSearchQuery] = useState('');
+    const [lastSearchQuery, setLastSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchError, setSearchError] = useState(null);
+    const [showNoResultsMessage, setShowNoResultsMessage] = useState(false);
+    const noResultsTimeoutRef = useRef(null);
 
     // Fetch articles from API
     useEffect(() => {
@@ -67,6 +81,32 @@ function HomePage() {
         fetchFavorites();
     }, [isAuthenticated]);
 
+    // Fetch user's blocked categories if authenticated
+    useEffect(() => {
+        const fetchBlockedCategories = async () => {
+            if (!isAuthenticated()) {
+                setBlockedCategories([]);
+                return;
+            }
+
+            try {
+                const blacklistedCategories = await UserPreferenceService.getBlacklistedCategories();
+                // Extract just the category names from the preferences data
+                const blockedCategoryNames = blacklistedCategories.map(pref => {
+                    // The API might return category objects or just the category name
+                    return pref.category?.name || pref.name || '';
+                }).filter(name => name !== '');
+                
+                setBlockedCategories(blockedCategoryNames);
+            } catch (err) {
+                console.error('Error fetching blocked categories:', err);
+                setBlockedCategories([]);
+            }
+        };
+
+        fetchBlockedCategories();
+    }, [isAuthenticated]);
+
     // Handle favorite change from ArticleCard
     const handleFavoriteChange = (articleId, isFavorite) => {
         if (isFavorite) {
@@ -81,34 +121,30 @@ function HomePage() {
         }
     };
 
-    // Format articles for display
-    const formatArticle = (article) => ({
-        id: article.id,
-        title: article.title,
-        summary: article.summary || 'No summary available for this article.',
-        source: article.source,
-        category: article.category.name,
-        date: article.published_at,
-        imageUrl: article.image_url,
-        url: article.url
-    });
+    // Format and filter articles
+    const formattedArticles = articles.map(formatArticle);
+    const formattedSearchResults = searchResults.map(formatArticle);
+    
+    // Filter search results to exclude blocked categories
+    const filteredFormattedSearchResults = formattedSearchResults.filter(article => 
+        !blockedCategories.includes(article.category)
+    );
 
-    // Filter articles based on selected category, then sort by publication date
+    // Filter regular articles based on selected category
     const filteredArticles = activeCategory === 'All'
-        ? articles.map(formatArticle)
-        : articles
-            .filter(article => article.category.name === activeCategory)
-            .map(formatArticle);
+        ? formattedArticles
+        : formattedArticles.filter(article => article.category === activeCategory);
 
-    // Sort the filtered articles by publication date
-    const sortedArticles = [...filteredArticles].sort((a, b) => {
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
-    });
+    // Filter search results based on selected category
+    const filteredSearchResults = activeCategory === 'All'
+        ? filteredFormattedSearchResults
+        : filteredFormattedSearchResults.filter(article => article.category === activeCategory);
 
-    // Get only the articles that should be visible
-    const currentArticles = sortedArticles.slice(0, visibleArticles);
+    // Sort searched articles by date
+    const sortedSearchResults = sortArticlesByDate(filteredSearchResults, sortOrder);
+
+    // Get only the articles that should be visible in recommended ordering
+    const currentArticles = filteredArticles.slice(0, visibleArticles);
 
     // Load more articles function
     const loadMoreArticles = () => {
@@ -120,10 +156,80 @@ function HomePage() {
         setSortOrder(prevOrder => prevOrder === 'newest' ? 'oldest' : 'newest');
     };
 
+    // Filter out blocked categories
+    const filteredCategories = categories.filter(category => 
+        category === 'All' || !blockedCategories.includes(category)
+    );
+
     // Reset visible articles when changing category or sort order
     useEffect(() => {
         setVisibleArticles(9);
     }, [activeCategory, sortOrder]);
+
+    // Clean up timeout on unmount
+    useEffect(() => {
+        // Store the current timeout ID in a variable inside the effect
+        const timeoutId = noResultsTimeoutRef.current;
+        
+        return () => {
+            // Use the variable in cleanup, not the ref directly
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        };
+    }, []);
+    
+    // Handle search functionality using our utility function
+    const handleSearch = () => {
+        performSearch(
+            searchQuery,
+            setIsSearching,
+            setSearchError,
+            setSearchResults,
+            setShowNoResultsMessage,
+            setLastSearchQuery,
+            setSearchQuery,
+            noResultsTimeoutRef
+        );
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            handleSearch();
+        }
+    };
+
+    // Render sort button
+    const renderSortButton = () => (
+        <Button
+            color="primary"
+            outline
+            onClick={toggleSortOrder}
+            className="d-flex align-items-center ms-auto"
+        >
+            {sortOrder === 'newest'
+                ? <FaSortAmountDown className="me-2" />
+                : <FaSortAmountUp className="me-2" />}
+            Sort by: {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+        </Button>
+    );
+
+    // Render no results message
+    const renderNoArticlesMessage = (category) => (
+        <Row className="py-5">
+            <Col className="text-center">
+                <Card body>
+                    <CardText className="mb-3">No articles found{category !== 'All' ? ` in the ${category} category` : ''}.</CardText>
+                    <Button
+                        color="primary"
+                        onClick={() => setActiveCategory('All')}
+                    >
+                        View All Articles
+                    </Button>
+                </Card>
+            </Col>
+        </Row>
+    );
 
     return (
         <Container className="mt-5 mb-4">
@@ -136,122 +242,163 @@ function HomePage() {
                     </p>
                 </Col>
             </Row>
-
-            {/* Category Filter */}
-            <Row className="mb-4">
-                <Col md="8">
-                    <ButtonGroup className="flex-wrap">
-                        {categories.map(category => (
-                            <Button
-                                key={category}
-                                color={activeCategory === category ? "primary" : "secondary"}
-                                outline={activeCategory !== category}
-                                onClick={() => setActiveCategory(category)}
-                                className="me-2 mb-2"
-                            >
-                                {category}
-                            </Button>
-                        ))}
-                    </ButtonGroup>
-                </Col>
-                <Col md="4" className="text-md-end mt-3 mt-md-0">
-                    <Button
-                        color="primary"
-                        outline
-                        onClick={toggleSortOrder}
-                        className="d-flex align-items-center ms-auto"
-                    >
-                        {sortOrder === 'newest'
-                            ? <FaSortAmountDown className="me-2" />
-                            : <FaSortAmountUp className="me-2" />}
-                        Sort by: {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
-                    </Button>
-                </Col>
-            </Row>
-
+            
+            {/* Search Bar */}
             <Row className="mb-4">
                 <Col>
-                    <h2 className="mb-3">
-                        {activeCategory === 'All' ? 'Personalized Recommendations' : `${activeCategory} News`}
-                    </h2>
+                    <SearchBar
+                        searchQuery={searchQuery}
+                        setSearchQuery={setSearchQuery}
+                        handleSearch={handleSearch}
+                        handleKeyPress={handleKeyPress}
+                        isSearching={isSearching}
+                        searchError={searchError}
+                    />
                 </Col>
             </Row>
-
-            {loading ? (
-                <Row className="text-center py-5">
-                    <Col>
-                        <Spinner color="primary" />
-                        <p className="mt-3">Loading articles...</p>
-                    </Col>
-                </Row>
-            ) : error ? (
-                <Row className="py-5">
-                    <Col className="text-center">
-                        <Card body>
-                            <CardText className="text-danger mb-3">{error}</CardText>
-                            <Button color="primary" onClick={() => window.location.reload()}>
-                                Retry
-                            </Button>
-                        </Card>
-                    </Col>
-                </Row>
-            ) : loadingFavorites ? (
-                <Row>
-                    {currentArticles.map(article => (
-                        <Col key={article.id} md="6" lg="4" className="mb-4">
-                            <div className="position-relative">
-                                <ArticleCard
-                                    article={article}
-                                    favoriteArticles={[]}
-                                    onFavoriteChange={handleFavoriteChange}
-                                />
-                                {/* Small loading indicator for bookmark status */}
-                                <div className="position-absolute top-0 end-0 mt-3 me-3">
-                                    <Spinner size="sm" color="primary" />
-                                </div>
-                            </div>
+            
+            {/* Search Results Display */}
+            {searchResults.length > 0 && (
+                <>
+                    <Row className="mb-4 align-items-center">
+                        <Col>
+                            <h2 className="mb-2">Search Results</h2>
+                            <p className="mb-0">Found {searchResults.length} articles matching "{lastSearchQuery}"</p>
                         </Col>
-                    ))}
-                </Row>
-            ) : (
-                <Row>
-                    {currentArticles.map(article => (
-                        <Col key={article.id} md="6" lg="4" className="mb-4">
-                            <ArticleCard
-                                article={article}
-                                favoriteArticles={favoriteArticles}
-                                onFavoriteChange={handleFavoriteChange}
+                        <Col xs="auto">
+                            <Button 
+                                color="secondary"
+                                title="Back to Main Feed"
+                                className="d-flex align-items-center justify-content-center"
+                                style={{ width: '38px', height: '38px', padding: '0' }}
+                                onClick={() => {
+                                    setSearchResults([]);
+                                    setLastSearchQuery('');
+                                }}
+                            >
+                                <FaHome />
+                            </Button>
+                        </Col>
+                    </Row>
+
+                    {/* Category Filter for Search Results */}
+                    <Row className="mb-4">
+                        <Col md="8">
+                            <CategoryFilter 
+                                categories={filteredCategories}
+                                activeCategory={activeCategory}
+                                setActiveCategory={setActiveCategory}
                             />
                         </Col>
-                    ))}
-                </Row>
-            )}
+                        <Col md="4" className="text-md-end mt-3 mt-md-0">
+                            {renderSortButton()}
+                        </Col>
+                    </Row>
 
-            {!loading && !error && filteredArticles.length === 0 && (
-                <Row className="py-5">
-                    <Col className="text-center">
-                        <Card body>
-                            <CardText className="mb-3">No articles found in this category.</CardText>
-                            <Button
-                                color="primary"
-                                onClick={() => setActiveCategory('All')}
-                            >
-                                View All Articles
-                            </Button>
-                        </Card>
+                    {filteredSearchResults.length > 0 ? (
+                        <ArticleGrid 
+                            articles={sortedSearchResults}
+                            favoriteArticles={favoriteArticles}
+                            onFavoriteChange={handleFavoriteChange}
+                        />
+                    ) : (
+                        renderNoArticlesMessage(activeCategory)
+                    )}
+                </>
+            )}
+            
+            {/* No search results message */}
+            {showNoResultsMessage && !isSearching && searchResults.length === 0 && (
+                <Row className="mb-4">
+                    <Col>
+                        <div className="alert alert-info" role="alert">
+                            <h4 className="alert-heading">No results found</h4>
+                            <p>We couldn't find any articles matching "{lastSearchQuery}". Please try a different search term.</p>
+                        </div>
                     </Col>
                 </Row>
             )}
 
-            {/* Load More button - only show if there are more articles to load */}
-            {!loading && !error && currentArticles.length > 0 && currentArticles.length < filteredArticles.length && (
-                <Row className="mt-4 mb-5">
-                    <Col className="text-center">
-                        <Button color="primary" onClick={loadMoreArticles}>
-                            Load More Articles
-                        </Button>
-                    </Col>
-                </Row>
+            {/* Only show category filters and regular content when there are no search results */}
+            {!searchResults.length && (
+                <>
+                    {/* Category Filter */}
+                    <Row className="mb-4">
+                        <Col md="8">
+                            <CategoryFilter 
+                                categories={filteredCategories}
+                                activeCategory={activeCategory}
+                                setActiveCategory={setActiveCategory}
+                            />
+                        </Col>
+                        <Col md="4" className="text-md-end mt-3 mt-md-0">
+                            {renderSortButton()}
+                        </Col>
+                    </Row>
+
+                    <Row className="mb-4">
+                        <Col>
+                            <h2 className="mb-3">
+                                {activeCategory === 'All' ? 'Personalized Recommendations' : `${activeCategory} News`}
+                            </h2>
+                        </Col>
+                    </Row>
+
+                    {loading ? (
+                        <Row className="text-center py-5">
+                            <Col>
+                                <Spinner color="primary" />
+                                <p className="mt-3">Loading articles...</p>
+                            </Col>
+                        </Row>
+                    ) : error ? (
+                        <Row className="py-5">
+                            <Col className="text-center">
+                                <Card body>
+                                    <CardText className="text-danger mb-3">{error}</CardText>
+                                    <Button color="primary" onClick={() => window.location.reload()}>
+                                        Retry
+                                    </Button>
+                                </Card>
+                            </Col>
+                        </Row>
+                    ) : loadingFavorites ? (
+                        <ArticleGrid 
+                            articles={currentArticles}
+                            favoriteArticles={[]} // Empty while loading
+                            onFavoriteChange={handleFavoriteChange}
+                        />
+                    ) : (
+                        <ArticleGrid 
+                            articles={currentArticles}
+                            favoriteArticles={favoriteArticles}
+                            onFavoriteChange={handleFavoriteChange}
+                        />
+                    )}
+
+                    {!loading && !error && filteredArticles.length === 0 && (
+                        renderNoArticlesMessage(activeCategory)
+                    )}
+
+                    {/* Load More button - only show if there are more articles to load */}
+                    {!loading && !error && currentArticles.length > 0 && currentArticles.length < filteredArticles.length && (
+                        <Row className="mt-4 mb-5">
+                            <Col className="text-center">
+                                <Button color="primary" onClick={loadMoreArticles}>
+                                    Load More Articles
+                                </Button>
+                            </Col>
+                        </Row>
+                    )}
+                </>
+            )}
+            
+            {/* Search in progress indicator */}
+            {isSearching && (
+                <div className="text-center mt-4">
+                    <Spinner color="primary" />
+                    <p>Searching for articles...</p>
+                </div>
             )}
         </Container>
     );

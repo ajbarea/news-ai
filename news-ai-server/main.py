@@ -26,6 +26,7 @@ from fastapi.responses import StreamingResponse
 from io import BytesIO
 from .services.tts_service import TTSService
 import os
+from .recommendations import train_recommendation_model, recommend_for_user
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -687,14 +688,26 @@ def get_articles(
         logger.debug("No authenticated user - showing all articles")
 
     # Apply pagination and ordering
-    stmt = stmt.order_by(models.Article.published_at.desc()).offset(skip).limit(limit)
+    articles = db.execute(stmt.options(joinedload(models.Article.audio))).scalars().all()
 
-    # Add joinedload for audio to the statement
-    stmt = stmt.options(joinedload(models.Article.audio))
+    if current_user:
 
-    # Execute the query
-    articles = db.execute(stmt).scalars().all()
-    
+        # Get predicted category scores
+        model = train_recommendation_model(db)
+        category_scores = dict(recommend_for_user(current_user.id, model, db))
+
+        def score_article(article):
+            return category_scores.get(article.category_id, 0)
+
+        # Sort all articles by recommendation score
+        articles.sort(key=score_article, reverse=True)
+    else:
+        # Default sort by how recent the article is
+        articles.sort(key=lambda a: a.published_at, reverse=True)
+
+    # Apply pagination
+    articles = articles[skip : skip + limit]
+
     # Set has_audio flag for each article
     for article in articles:
         article.has_audio = article.audio is not None
@@ -1355,6 +1368,33 @@ async def add_favorite_article(
     db.add(favorite_entry)
     db.commit()
 
+    # Find the user preference for this category
+    preference = (
+        db.query(models.UserPreference)
+        .filter(
+            models.UserPreference.user_id == current_user.id,
+            models.UserPreference.category_id == article.category_id,
+        )
+        .first()
+    )
+
+    # Increment the score (preference should exist due to our event listener)
+    if preference:
+        preference.score += 2
+        db.commit()
+        db.refresh(preference)
+    else:
+        # This is an unexpected case, but we'll handle it gracefully
+        preference = models.UserPreference(
+            user_id=current_user.id,
+            category_id=article.category_id,
+            score=1,
+            blacklisted=False,
+        )
+        db.add(preference)
+        db.commit()
+        db.refresh(preference)
+
     return article
 
 
@@ -1394,8 +1434,37 @@ async def remove_favorite_article(
     if not favorite_entry:
         raise HTTPException(status_code=404, detail="Article not found in favorites")
 
+    article = favorite_entry.article
+
     db.delete(favorite_entry)
     db.commit()
+
+    # Find the user preference for this category
+    preference = (
+        db.query(models.UserPreference)
+        .filter(
+            models.UserPreference.user_id == current_user.id,
+            models.UserPreference.category_id == article.category_id,
+        )
+        .first()
+    )
+
+    # Increment the score (preference should exist due to our event listener)
+    if preference:
+        preference.score -= 2
+        db.commit()
+        db.refresh(preference)
+    else:
+        # This is an unexpected case, but we'll handle it gracefully
+        preference = models.UserPreference(
+            user_id=current_user.id,
+            category_id=article.category_id,
+            score=0,
+            blacklisted=False,
+        )
+        db.add(preference)
+        db.commit()
+        db.refresh(preference)
 
     return None
 
