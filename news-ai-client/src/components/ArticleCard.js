@@ -238,11 +238,9 @@ const ArticleMetadata = ({ category, date, source, sourceLogo, subscriptionRequi
         </div>
       )}
 
-      {subscriptionRequired && (
-        <div className="me-1 flex-shrink-0">
-          <Badge color="warning" className="text-dark" pill style={badgeStyle}>Paywall</Badge>
-        </div>
-      )}
+       {article.subscription_required &&
+                    <span className="ms-1 badge bg-warning text-dark">Paywall</span>
+                  }
 
       <div className="flex-shrink-0">
         <small className="text-muted d-inline-block" style={{ lineHeight: "24px" }}>5m read</small>
