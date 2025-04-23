@@ -238,8 +238,8 @@ const ArticleMetadata = ({ category, date, source, sourceLogo, subscriptionRequi
         </div>
       )}
 
-       {article.subscription_required &&
-                    <span className="ms-1 badge bg-warning text-dark">Paywall</span>
+       {subscriptionRequired &&
+                    <span className="ms-1 me-1 badge bg-warning text-dark rounded-pill">Paywall</span>
                   }
 
       <div className="flex-shrink-0">
