@@ -334,4 +334,20 @@ def get_articles(db_categories, db_sources):
             published_at=datetime.strptime("2025-03-06 14:37:00", "%Y-%m-%d %H:%M:%S"),
             image_url="https://cdn.mos.cms.futurecdn.net/AgnS3eqq2b66aaipjov5Do-970-80.jpg.webp"
         ),
+        build_article(  # The Hacker News - Technology
+            title="THN Weekly Recap: iOS Zero-Days, 4Chan Breach, NTLM Exploits, WhatsApp Spyware & More",
+            category_id=db_categories["Technology"].id,
+            source_id=db_sources["The Hacker News"].id,
+            url="https://thehackernews.com/2025/04/thn-weekly-recap-ios-zero-days-4chan.html",
+            published_at=datetime.strptime("2025-04-21", "%Y-%m-%d"),
+            image_url="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh2xukBJUi8pjcSfvONOoKAOoUFu4tQNu6RK5essP9M7D238JyV-pEN-D2SHsod1qYHst-7D1ND4NkWWTC2i1FervBo13M3mnQzLykv2D2iXaMl991lEK1CMefnrdJcxKcpIfVLoNbbarH6PW6p9uSgxymvfhgCBUyA7iB1gMSTpeCZjqDT-_Y5i2yEmjsc/s728-rw-e365/recap.jpg"
+        ),
+        build_article(  # The Hacker News - Business
+            title="U.S. Govt. Funding for MITRE's CVE Ends April 16, Cybersecurity Community on Alert",
+            category_id=db_categories["Business"].id,
+            source_id=db_sources["The Hacker News"].id,
+            url="https://thehackernews.com/2025/04/us-govt-funding-for-mitres-cve-ends.html",
+            published_at=datetime.strptime("2025-04-16", "%Y-%m-%d"),
+            image_url="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhBK-WrodfGXNvPqkkYGA_5NZ_pM__OxFG-N9N8I-Z1chfySLHQRQXvcwb1vGbG4de8ktuAKMeaSTg4Rz-WgYK9xlOaQ1-xNAamTBybbbPytbP8sml_W9rWEGmefajmi4PkXUMp0hg_imRWemkIHZmBkLvHAH-7mZqYde1wacWu1IIE7BbsbDkOBSnXXp5K/s728-rw-e365/mitre-cve.jpg"
+        ),
     ]
