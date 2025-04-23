@@ -60,5 +60,4 @@ python -m pip install --upgrade pip # Upgrade pip
 pip install -r requirements.txt # Install dependencies
 fastapi dev main.py # Launch Python FastAPI server
 ```
-
-
+=======

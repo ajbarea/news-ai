@@ -107,7 +107,7 @@ class Source(Base):
     Source model representing news publishers/sources.
 
     Sources store information about news publishers including their
-    name, URL, and whether they require a subscription.
+    name, and url.
     """
 
     __tablename__ = "sources"
@@ -117,9 +117,6 @@ class Source(Base):
     url: Mapped[str] = mapped_column(
         Text, nullable=False
     )  # Base URL of the news source
-    subscription_required: Mapped[bool] = mapped_column(
-        Boolean, default=False
-    )  # Whether the source requires paid subscription
     logo_url: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True
     )  # URL to the source's logo image
@@ -187,8 +184,8 @@ class Article(Base):
     """
     Article model representing news articles.
 
-    This stores article metadata including title, source, category,
-    and publishing information. The actual content is accessed via the URL.
+    This stores article metadata including title, source, category, publishing information,
+    AI summary, and paywall detection. The actual content is accessed via the URL.
     """
 
     __tablename__ = "articles"
@@ -211,6 +208,9 @@ class Article(Base):
     summary: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True
     )  # Summary of the article content
+    subscription_required: Mapped[bool] = mapped_column(
+        Boolean, default=False
+    )  # Whether there was a paywall encountered on article
 
     # Relationships
     category: Mapped["Category"] = relationship("Category", back_populates="articles")

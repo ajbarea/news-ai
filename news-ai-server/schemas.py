@@ -119,12 +119,11 @@ class SourceBase(BaseModel):
     News source base schema.
 
     Defines the properties of a content provider,
-    including subscription status and branding.
+    including branding.
     """
 
     name: str
     url: str
-    subscription_required: bool = False  # Whether content requires paid access
     logo_url: Optional[str] = None  # Publisher logo for UI display
 
 
@@ -154,6 +153,7 @@ class ArticleBase(BaseModel):
     published_at: datetime
     image_url: Optional[str] = None  # Featured image
     summary: Optional[str] = None  # Article excerpt or summary
+    subscription_required: bool
 
 
 class Article(ArticleBase):

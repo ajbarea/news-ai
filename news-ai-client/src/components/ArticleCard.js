@@ -238,11 +238,9 @@ const ArticleMetadata = ({ category, date, source, sourceLogo, subscriptionRequi
         </div>
       )}
 
-      {subscriptionRequired && (
-        <div className="me-1 flex-shrink-0">
-          <Badge color="warning" className="text-dark" pill style={badgeStyle}>Sub</Badge>
-        </div>
-      )}
+       {subscriptionRequired &&
+                    <span className="ms-1 me-1 badge bg-warning text-dark rounded-pill">Paywall</span>
+                  }
 
       <div className="flex-shrink-0">
         <small className="text-muted d-inline-block" style={{ lineHeight: "24px" }}>5m read</small>
@@ -308,7 +306,7 @@ function ArticleCard({ article, favoriteArticles = [], onFavoriteChange = null }
     if (typeof article.source === 'object') {
       sourceName = article.source.name || "Unknown";
       sourceLogo = article.source.logo_url || null;
-      subscriptionRequired = article.source.subscription_required || false;
+      subscriptionRequired = article.subscription_required || false;
       sourceId = article.source.id || null;
     } else {
       sourceName = article.source;
