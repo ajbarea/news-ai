@@ -128,6 +128,7 @@ def seed_articles(db: Session):
         "The New York Times",
         "The Hacker News",
         "Bloomberg",
+        "Good Morning America",
     ]
 
     missing_categories = [c for c in required_categories if c not in db_categories]

@@ -109,6 +109,11 @@ sources = [
         url="https://www.bloomberg.com",
         logo_url="https://cdn.brandfetch.io/idy68RSCip/w/400/h/400/theme/dark/icon.jpeg?c=1bxid64Mup7aczewSAYMX&t=1675835450168",
     ),
+    models.Source(
+        name="Good Morning America",
+        url="https://abcnews.go.com/GMA",
+        logo_url="https://brandfetch.com/goodmorningamerica.com?view=library&library=default&collection=logos&asset=id3Gu8CPvT&utm_source=https%253A%252F%252Fbrandfetch.com%252Fgoodmorningamerica.com&utm_medium=copyAction&utm_campaign=brandPageReferral",
+    )
 ]
 
 def build_article(title, url, category_id, source_id, published_at, image_url):
@@ -349,5 +354,85 @@ def get_articles(db_categories, db_sources):
             url="https://thehackernews.com/2025/04/us-govt-funding-for-mitres-cve-ends.html",
             published_at=datetime.strptime("2025-04-16", "%Y-%m-%d"),
             image_url="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhBK-WrodfGXNvPqkkYGA_5NZ_pM__OxFG-N9N8I-Z1chfySLHQRQXvcwb1vGbG4de8ktuAKMeaSTg4Rz-WgYK9xlOaQ1-xNAamTBybbbPytbP8sml_W9rWEGmefajmi4PkXUMp0hg_imRWemkIHZmBkLvHAH-7mZqYde1wacWu1IIE7BbsbDkOBSnXXp5K/s728-rw-e365/mitre-cve.jpg"
+        ),
+        build_article(  # ABC News - Politics
+            title="Pope Francis makes surprise appearance at St. Peter's Basilica",
+            category_id=db_categories["Politics"].id,
+            source_id=db_sources["ABC News"].id,
+            url="https://abcnews.go.com/International/pope-francis-makes-surprise-appearance-st-peters-basilica/story?id=120978110",
+            published_at=datetime.strptime("2025-04-19", "%Y-%m-%d"),
+            image_url="https://i.abcnewsfe.com/a/c9b10732-cba9-4862-83d4-b590ea33c672/pope-02-ht-jt-250419_1745090609080_hpMain.jpg?w=750"
+        ),
+        build_article(  # ABC News - Politics
+            title="Pope Francis, everyman leader of the Roman Catholic Church, dies at 88",
+            category_id=db_categories["Politics"].id,
+            source_id=db_sources["ABC News"].id,
+            url="https://abcnews.go.com/International/pope-francis-everyman-leader-roman-catholic-church-dies/story?id=24335298",
+            published_at=datetime.strptime("2025-04-21", "%Y-%m-%d"),
+            image_url="https://s.abcnews.com/images/International/pope-francis-file-gty-jef-230329_1680131037961_hpMain_4x3t_240.jpg"
+        ),
+        build_article(  # ABC News - Technology
+            title="Why 3D printing could make housing cheaper and more sustainable",
+            category_id=db_categories["Technology"].id,
+            source_id=db_sources["ABC News"].id,
+            url="https://abcnews.go.com/US/3d-printing-make-housing-cheaper-sustainable/story?id=121047346",
+            published_at=datetime.strptime("2025-04-23", "%Y-%m-%d"),
+            image_url="https://s.abcnews.com/images/US/3d-1-abc-er-250422_1745352781657_hpMain_4x3t_240.jpg"
+        ),
+        build_article(  # ABC News - Business
+            title="Pope Francis appears for Easter Sunday blessing after meeting JD Vance at Vatican",
+            category_id=db_categories["Business"].id,
+            source_id=db_sources["ABC News"].id,
+            url="https://abcnews.go.com/International/pope-francis-exchanges-easter-jd-vance-vatican/story?id=120987032",
+            published_at=datetime.strptime("2025-04-20", "%Y-%m-%d"),
+            image_url="https://s.abcnews.com/images/International/jd-vance2-gty-bh-250420_1745153399045_hpMain_4x3t_240.jpg"
+        ),
+        build_article(  # ABC News - Entertainment
+            title="xxx",
+            category_id=db_categories["Entertainment"].id,
+            source_id=db_sources["Good Morning America"].id,
+            url="https://www.goodmorningamerica.com/family/story/teen-fans-minecraft-movie-spark-mayhem-chicken-jockey-120630292",
+            published_at=datetime.strptime("2025-04-14", "%Y-%m-%d"),
+            image_url="https://s.abcnews.com/images/GMA/minecraft-ht-jef-250409_1744200888451_hpMain_4x3t_240.jpg"
+        ),
+        build_article(  # ABC News - Entertainment
+            title="McDonald's and Minecraft team up for new Happy Meal",
+            category_id=db_categories["Entertainment"].id,
+            source_id=db_sources["Good Morning America"].id,
+            url="https://www.goodmorningamerica.com/food/story/mcdonalds-minecraft-team-new-happy-meal-120407485",
+            published_at=datetime.strptime("2025-04-02", "%Y-%m-%d"),
+            image_url="https://s.abcnews.com/images/GMA/minecraft-mcdonalds-main-ht-jt-250402_1743609585458_hpMain_4x3t_240.jpg"
+        ),
+        build_article( 
+            title="The record-breaking tunnel being built from Denmark to Germany",
+            category_id=db_categories["Technology"].id,
+            source_id=db_sources["BBC"].id,
+            url="https://www.bbc.com/news/articles/cy70y2x3xj6o",
+            published_at=datetime.strptime("2025-04-22", "%Y-%m-%d"),
+            image_url="https://ichef.bbci.co.uk/news/1024/cpsprodpb/a9d2/live/f6d90120-19e4-11f0-bff1-bba065990f72.jpg.webp"
+        ),
+        build_article( 
+            title="General Motors wins F1 engine approval for 2029",
+            category_id=db_categories["Technology"].id,
+            source_id=db_sources["BBC"].id,
+            url="https://www.bbc.com/sport/formula1/articles/c8epgyx80g4o",
+            published_at=datetime.strptime("2025-04-23", "%Y-%m-%d"),
+            image_url="https://ichef.bbci.co.uk/ace/standard/976/cpsprodpb/43f8/live/f22ead20-ce9c-11ef-8003-5563c395c8f2.jpg.webp"
+        ),
+        build_article( 
+            title="Piastri wins in Saudi Arabia and takes title lead",
+            category_id=db_categories["Sports"].id,
+            source_id=db_sources["BBC"].id,
+            url="https://www.bbc.com/sport/formula1/articles/c0l09543x3lo",
+            published_at=datetime.strptime("2025-04-20", "%Y-%m-%d"),
+            image_url="https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/2076/live/901a24d0-1e1e-11f0-b265-abe347419ae3.jpg.webp"
+        ),
+        build_article( 
+            title="'I've let myself & the team down' - Norris on qualifying 'shunt'",
+            category_id=db_categories["Sports"].id,
+            source_id=db_sources["BBC"].id,
+            url="https://www.bbc.com/sport/formula1/articles/cp8vzv29p3vo",
+            published_at=datetime.strptime("2025-04-19", "%Y-%m-%d"),
+            image_url="https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/41c2/live/7fb22330-1d52-11f0-8408-f7067c9fa54e.jpg.webp"
         ),
     ]
